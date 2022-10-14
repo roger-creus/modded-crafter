@@ -1,7 +1,11 @@
 __pycache__/
+/__pycache__/
 *.py[cod]
 *.egg-info
 /dist
 /*.png
 /*.mp4
 .DS_Store
+*.npy
+/*.npy
+/src/trajectories/*

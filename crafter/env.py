@@ -67,8 +67,14 @@ class Env(BaseClass):
   def action_names(self):
     return constants.actions
 
-  def reset(self):
-    center = (self._world.area[0] // 2, self._world.area[1] // 2)
+  def reset(self, init_pos = "center"):
+    if init_pos == "center":
+      center = (self._world.area[0] // 2, self._world.area[1] // 2)
+    else:
+      random_x = np.random.randint(self._world.area[0])
+      random_y = np.random.randint(self._world.area[1])
+      center = (random_x, random_y)
+
     self._episode += 1
     self._step = 0
     self._world.reset(seed=hash((self._seed, self._episode)) % (2 ** 31 - 1))
@@ -177,3 +183,15 @@ class Env(BaseClass):
       away = self._player.distance(obj.pos) >= despan_dist
       if away:
         self._world.remove(obj)
+
+  def render_world(self, size=None):
+    size = size or self._size
+    unit = size
+    print(size, unit)
+    canvas = np.zeros(tuple(size) + (3,), np.uint8)
+    local_view = self._local_view(self._player, unit)
+    item_view = self._item_view(self._player.inventory, unit)
+    view = np.concatenate([local_view, item_view], 1)
+    #(x, y), (w, h) = border, view.shape[:2]
+    #canvas[x: x + w, y: y + h] = view
+    return view
