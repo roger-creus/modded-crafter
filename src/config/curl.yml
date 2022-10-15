@@ -1,0 +1,20 @@
+experiment: 'crafter_curl'
+environment: 'CrafterReward-v1'
+trajectories: ['observations']
+epochs: 100
+batch_size: 32
+lr: 0.001
+split: 0.90
+tau: 0.005
+soft_update: 2
+img_size: 64
+delay: yes
+
+curl:
+  k_std: 5
+  k_mean: 15
+  z_dim: 512
+test:
+  type: 'embed'  # [index, reward, embed]
+  shuffle: yes
+  limit: 2500

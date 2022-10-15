@@ -2,10 +2,11 @@ import torch
 import torch.nn as nn
 from torch.distributions.categorical import Categorical
 
-from utils.utils import * 
+from src.utils.utils import * 
+
 
 class Encoder(nn.Module):
-    def __init__(self, in_channels = 1, hidden_channels = 32, stride = 4):
+    def __init__(self, in_channels = 1, z_dim = 512, hidden_channels = 32, stride = 4):
         super().__init__()
         
         self.network = nn.Sequential(
@@ -16,7 +17,7 @@ class Encoder(nn.Module):
             layer_init(nn.Conv2d(hidden_channels * 2, hidden_channels * 2, 3, stride=1)),
             nn.ReLU(),
             nn.Flatten(),
-            layer_init(nn.Linear(hidden_channels * 2 * 5 * 5, 512)),
+            layer_init(nn.Linear(hidden_channels * 2 * 5 * 5, z_dim)),
             nn.ReLU(),
         )
 

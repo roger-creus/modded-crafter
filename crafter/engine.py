@@ -341,8 +341,7 @@ def _draw(canvas, pos, texture):
 
 def _draw_alpha(canvas, pos, texture, global_view = False):
   (x, y), (w, h) = pos, texture.shape[:2]
-  if global_view:
-    embed()
+  
   if texture.shape[-1] == 4:
     alpha = texture[..., 3:].astype(np.float32) / 255
     texture = texture[..., :3].astype(np.float32) / 255

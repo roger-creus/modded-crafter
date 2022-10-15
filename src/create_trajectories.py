@@ -18,8 +18,10 @@ parser.add_argument('--traj-length', type=int, default = 500,
                     help='trajectory length')
 parser.add_argument('--traj-num', type=int, default=500,
                     help='num of trajectories')
-parser.add_argument('--save-path', type=str, default="src/trajectories/",
+parser.add_argument('--save-path', type=str, default="src/representations/trajectories/",
                     help='save path')
+parser.add_argument('--num-envs', type=int, default=10,
+                    help='num of different environment seeds to collect trajectories on')
 parser.add_argument('--seed', type=int, default=1,
                     help='seed of the environment')
 args = parser.parse_args()
