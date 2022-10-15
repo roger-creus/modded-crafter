@@ -78,8 +78,8 @@ def index_map(trajectories_positions, embeddings, enc):
     x_list = []
     y_list = []
     for i, (e, p) in enumerate(zip(embeddings, trajectories_positions)):
-        x = int(p[0])
-        y = int(p[1])
+        x = int(p[0]) * 64
+        y = int(p[1]) * 64
         e = torch.from_numpy(e).cuda()
         k = enc.compute_argmax(e.unsqueeze(dim=0))
         x_list.append(x)
@@ -91,11 +91,11 @@ def index_map(trajectories_positions, embeddings, enc):
     values['k'] = cluster_mappings
     values['k'] = values['k'].astype('int32')
 
-    embed()
-    env = Env(seed = 999, view = (64,64))
+    env = Env(seed = 1, view = (64,64))
     obs = env.reset()
     world_img = env.render_world()
     plt.scatter(values['x'], values['y'], c=values['k'].map(colors))
+    plt.imshow(world_img.transpose(1,0,2))
     plt.savefig("index_map.png")
 
     
