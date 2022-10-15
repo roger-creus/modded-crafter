@@ -4,11 +4,11 @@ import torch
 import numpy as np
 import matplotlib.pylab as plt
 from torch.utils.data import Dataset
+from torch.utils.data import DataLoader
 from random import shuffle
 from IPython import embed
 
 from pathlib import Path
-
 
 
 class CustomCrafterData(Dataset):
@@ -71,22 +71,3 @@ class CustomCrafterData(Dataset):
         x = torch.stack((key, query))
         x = x.permute(0,3,1,2)
         return x
-
-
-def trainValSplit(traj_list, split):
-    num_traj = len(traj_list)
-
-    if split == 1:
-        return traj_list, []
-    else:
-        shuffle(traj_list)
-        return traj_list[:int(split*num_traj)], traj_list[int(split*num_traj):]
-
-
-def get_train_val_split(t, split):
-    path = Path('src/representations/trajectories/')
-    #total_t = []
-    items = sorted(os.listdir(path / t[0]), key=lambda x: int(x.split('.')[0].split('_')[2]))
-    #items = [path / t[0] / x for x in items]
-    #total_t.extend(items)
-    return trainValSplit(items, split)

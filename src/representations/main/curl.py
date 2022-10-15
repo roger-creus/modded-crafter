@@ -3,12 +3,7 @@ import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
 import matplotlib.pyplot as plt
-
-from os.path import join
 from pathlib import Path
-from pprint import pprint
-from sklearn.cluster import KMeans
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -16,6 +11,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from src.representations.main.custom_loader import *
+from src.representations.main.representation_utils import *
 from src.representations.models.CURL import CURL_PL
 
 from IPython import embed
@@ -30,6 +26,7 @@ class CURL(CURL_PL):
 
         super(CURL, self).__init__(**conf['curl'])
 
+        self.path_clusters = Path("src/representations/trajectories/clusters/")
         self.experiment = conf['experiment']
         self.batch_size = conf['batch_size']
         self.lr = conf['lr']
@@ -49,7 +46,6 @@ class CURL(CURL_PL):
         self.type = self.test['type']
         self.shuffle = self.test['shuffle']
         self.limit = self.test['limit']
-        #self.num_clusters = len(os.listdir(self.path_goal_states))
 
 
     def forward(self, data):
@@ -105,19 +101,24 @@ class CURL(CURL_PL):
                 self.tau * param.data + (1 - self.tau) * target_param.data
             )
 
-    """
-    def store_goal_states(self):
-        num_clusters = 10
+    
+    def store_clusters(self):
+        num_clusters = 5
+        
         loader = get_loader(
             self.trajectories,
-            self.transform,
             self.conf)
 
+        print("computing embeddings")
         embeddings = compute_embeddings_curl(loader, self.encode)
 
+        print("computing clusters")
         kmeans = compute_kmeans(embeddings, num_clusters)
+
         for i, k in enumerate(kmeans.cluster_centers_):
-            with open(f'{self.path_goal_states}/{i}.npy', 'wb') as f:
+            with open(f'{str(self.path_clusters)}/{i}.npy', 'wb') as f:
                 np.save(f, k)
-    """
+
+    def _construct_map(self):
+        construct_map(self)
 

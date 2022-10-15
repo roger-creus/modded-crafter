@@ -3,17 +3,18 @@ import argparse
 import crafter
 import numpy as np
 import os
+
 from crafter.env import Env
 import matplotlib.pyplot as plt
 
+from IPython import embed
+
 parser = argparse.ArgumentParser()
-parser.add_argument('--traj-path', type=str, default='src/representations/trajectories/positions/',
-                    help='path to the positions trajectories')
 parser.add_argument('--seed', type=int, default=1,
                     help='seed of the environment')
 args = parser.parse_args()
 
-env = Env(seed = args.seed, view = (64,64))
+env = Env(seed = args.seed, view = (64,64))  # Or CrafterNoReward-v1
 env = crafter.Recorder(
   env, './path/to/logdir',
   save_stats=False,
@@ -21,8 +22,8 @@ env = crafter.Recorder(
   save_episode=False,
 )
 
-positions_path = args.traj_path
 
+positions_path = 'src/representations/trajectories/positions/'
 for i in range(len(os.listdir(positions_path))):
     position = np.load(positions_path + "trajectory_positions_" + str(i) + ".npy")
     step = 0

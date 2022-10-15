@@ -14,7 +14,10 @@ curl:
   k_std: 5
   k_mean: 15
   z_dim: 512
+  path_clusters: '/home/roger/Desktop/modded-crafter/src/representations/trajectories/clusters'
 test:
-  type: 'embed'  # [index, reward, embed]
-  shuffle: yes
-  limit: 2500
+  type: 'index'  # [index, reward, embed]
+  shuffle: no
+  limit: 10000
+  path_weights: 'epoch=99-step=209400.ckpt'
+  

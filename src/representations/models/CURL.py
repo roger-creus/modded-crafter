@@ -5,6 +5,7 @@ import torch.nn as nn
 from random import randint
 import pytorch_lightning as pl
 from IPython import embed
+from pathlib import Path
 
 from src.utils.networks import Encoder
 
@@ -18,6 +19,7 @@ class CURL_PL(pl.LightningModule):
             obs_shape=(1,64,64),
             z_dim=50,
             output_type="continuous",
+            path_clusters = '/home/roger/Desktop/modded-crafter/src/representations/trajectories/clusters',
             device=None,
             **kwargs
             ):
@@ -28,7 +30,11 @@ class CURL_PL(pl.LightningModule):
 
         self.W = nn.Parameter(torch.rand(z_dim, z_dim))
         self.output_type = output_type
-
+        
+        self.dev = "cuda"
+        if path_clusters is not None:
+            self.path_clusters = Path(path_clusters)
+            self.clusters = self.load_clusters()
 
     def encode(self, x, detach=False, ema=False):
         """
@@ -48,7 +54,7 @@ class CURL_PL(pl.LightningModule):
 
     def compute_logits(self, z_a, z_pos=None):
         if z_pos == None:
-            z_pos = self.goal_states
+            z_pos = self.clusters
         Wz = torch.matmul(self.W, z_pos.T)  # (z_dim,B)
         logits = torch.matmul(z_a, Wz)  # (B,B)
         return logits
@@ -68,3 +74,15 @@ class CURL_PL(pl.LightningModule):
     def compute_argmax(self, z_a, z_pos=None):
         logits = self.compute_logits(z_a, z_pos)
         return torch.argmax(logits).cpu().item()
+
+    def load_clusters(self):
+        clusters = []
+
+        for gs in sorted(os.listdir(self.path_clusters)):
+            if 'npy' in gs:
+                clusters.append(np.load(os.path.join(self.path_clusters, gs)))
+        
+        clusters = np.array(clusters)
+        clusters = torch.from_numpy(clusters).squeeze().float().to(self.dev)
+        
+        return clusters
