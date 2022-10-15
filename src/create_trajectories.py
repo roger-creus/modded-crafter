@@ -3,9 +3,13 @@ import argparse
 import crafter
 import numpy as np
 import os
+import random
 
 from utils.wrappers import *
 from crafter.env import Env
+
+import matplotlib.pyplot as plt
+from IPython import embed
 
 import cv2
 
@@ -25,6 +29,8 @@ traj_num = args.traj_num
 
 env = Env(seed = args.seed)  # Or CrafterNoReward-v1
 
+possible_actions = [1,2,3,4]
+
 for i in range(traj_num):
     steps = 0
     done = False
@@ -34,8 +40,8 @@ for i in range(traj_num):
     trajectory_positions = []
 
     while steps < traj_len and not done:
-        action = env.action_space.sample()
-        obs, reward, done, info = env.step(action)
+        
+        obs, reward, done, info = env.step(random.choice(possible_actions))
         
         player_pos = np.array(info["player_pos"])
 
@@ -50,11 +56,9 @@ for i in range(traj_num):
         trajectory.append(obs)
         trajectory_positions.append(player_pos)
 
-
     trajectory = np.array(trajectory)
     trajectory_positions = np.array(trajectory_positions)
-
-
+    
     trajectory_observations_path = args.save_path + "observations/" + "trajectory_observations_"  + str(i) + ".npy"
     trajectory_positions_path = args.save_path + "positions/" + "trajectory_positions_" + str(i) + ".npy"
 
@@ -63,6 +67,9 @@ for i in range(traj_num):
     
     with open(trajectory_positions_path, 'wb') as to:
         np.save(to, trajectory_positions)
+
+
+
 
         
         

@@ -7,6 +7,8 @@ from . import engine
 from . import objects
 from . import worldgen
 
+from IPython import embed
+
 
 # Gym is an optional dependency.
 try:
@@ -40,6 +42,8 @@ class Env(BaseClass):
     self._world = engine.World(area, constants.materials, (12, 12))
     self._textures = engine.Textures(constants.root / 'assets')
     item_rows = int(np.ceil(len(constants.items) / view[0]))
+    self._global_view = engine.GlobalView(
+        self._world, self._textures, [area[0], area[1]])    
     self._local_view = engine.LocalView(
         self._world, self._textures, [view[0], view[1] - item_rows])
     self._item_view = engine.ItemView(
@@ -68,23 +72,37 @@ class Env(BaseClass):
     return constants.actions
 
   def reset(self, init_pos = "center"):
-    if init_pos == "center":
-      center = (self._world.area[0] // 2, self._world.area[1] // 2)
-    else:
-      random_x = np.random.randint(self._world.area[0])
-      random_y = np.random.randint(self._world.area[1])
-      center = (random_x, random_y)
-
+    center = (self._world.area[0] // 2, self._world.area[1] // 2)
     self._episode += 1
     self._step = 0
-    self._world.reset(seed=hash((self._seed, self._episode)) % (2 ** 31 - 1))
+    #self._world.reset(seed=hash((self._seed, self._episode)) % (2 ** 31 - 1))
+    self._world.reset(seed=hash((self._seed, 0)) % (2 ** 31 - 1))
     self._update_time()
     self._player = objects.Player(self._world, center)
     self._last_health = self._player.health
     self._world.add(self._player)
     self._unlocked = set()
     worldgen.generate_world(self._world, self._player)
-    return self._obs()
+
+    # to start each episode at a random position (useful for collecting trajectories)
+    if init_pos == "random":
+      correct_pos = False
+      while not correct_pos:
+        random_x = np.random.randint(self._world.area[0])
+        random_y = np.random.randint(self._world.area[1])
+        center = (random_x, random_y)
+
+        if self._world[center[0], center[1]][0] in constants.walkable and self._world._obj_map[center] == 0:
+          correct_pos = True
+          print("correctly found a walkable start")
+        else:
+          print("no walkable position!")
+    
+      # set the player to the chosen positions. if it is not random, then its just the center of the map
+      self._world.move(self._player, center)
+
+    #return self._obs()
+    return None
 
   def step(self, action):
     self._step += 1
@@ -186,12 +204,5 @@ class Env(BaseClass):
 
   def render_world(self, size=None):
     size = size or self._size
-    unit = size
-    print(size, unit)
-    canvas = np.zeros(tuple(size) + (3,), np.uint8)
-    local_view = self._local_view(self._player, unit)
-    item_view = self._item_view(self._player.inventory, unit)
-    view = np.concatenate([local_view, item_view], 1)
-    #(x, y), (w, h) = border, view.shape[:2]
-    #canvas[x: x + w, y: y + h] = view
-    return view
+    global_view = self._local_view(self._player, size)
+    return global_view / 255.

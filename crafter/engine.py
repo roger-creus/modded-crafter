@@ -1,11 +1,13 @@
 import collections
 import functools
 import pathlib
+import posix
 
 import imageio
 import numpy as np
 from PIL import Image, ImageEnhance
 
+from IPython import embed
 
 class AttrDict(dict):
 
@@ -143,8 +145,72 @@ class Textures:
 
 
 class GlobalView:
+  def __init__(self, world, textures, grid):
+    self._world = world
+    self._textures = textures
+    self._grid = np.array(grid)
+    self._offset = self._grid // 2
+    self._area = np.array(self._world.area)
+    self._center = None
 
-  pass
+  def __call__(self, player, unit):
+    self._unit = np.array(unit)
+    self._center = np.array(player.pos)
+    canvas = np.zeros(tuple(unit) + (3,), np.uint8) + 127
+    #for x in range(self._grid[0]):
+    #  for y in range(self._grid[1] - 2):
+    #    pos = self._center + np.array([x, y]) - self._offset
+    #    if not _inside((0, 0), pos, self._area):
+    #      continue
+    pos = np.array([0,0])
+    texture = self._textures.get(self._world[pos][0], unit)
+    _draw(canvas, pos, texture)
+    
+    """
+    for obj in self._world.objects:
+      pos = obj.pos
+      if not _inside((0, 0), pos, self._grid):
+        continue
+      texture = self._textures.get(obj.texture, unit)
+      _draw_alpha(canvas, pos, texture, global_view = True)
+    canvas = self._light(canvas, self._world.daylight)
+    if player.sleeping:
+      canvas = self._sleep(canvas)
+    # if player.health < 1:
+    #   canvas = self._tint(canvas, (128, 0, 0), 0.6)
+    """
+    return canvas
+
+  def _light(self, canvas, daylight):
+    night = canvas
+    if daylight < 0.5:
+      night = self._noise(night, 2 * (0.5 - daylight), 0.5)
+    night = np.array(ImageEnhance.Color(
+        Image.fromarray(night.astype(np.uint8))).enhance(0.4))
+    night = self._tint(night, (0, 16, 64), 0.5)
+    return daylight * canvas + (1 - daylight) * night
+
+  def _sleep(self, canvas):
+    canvas = np.array(ImageEnhance.Color(
+        Image.fromarray(canvas.astype(np.uint8))).enhance(0.0))
+    canvas = self._tint(canvas, (0, 0, 16), 0.5)
+    return canvas
+
+  def _tint(self, canvas, color, amount):
+    color = np.array(color)
+    return (1 - amount) * canvas + amount * color
+
+  def _noise(self, canvas, amount, stddev):
+    noise = self._world.random.uniform(32, 127, canvas.shape[:2])[..., None]
+    mask = amount * self._vignette(canvas.shape, stddev)[..., None]
+    return (1 - mask) * canvas + mask * noise
+
+  @functools.lru_cache(10)
+  def _vignette(self, shape, stddev):
+    xs, ys = np.meshgrid(
+        np.linspace(-1, 1, shape[0]),
+        np.linspace(-1, 1, shape[1]))
+    return 1 - np.exp(-0.5 * (xs ** 2 + ys ** 2) / (stddev ** 2)).T
 
 
 class UncoverView:
@@ -273,8 +339,10 @@ def _draw(canvas, pos, texture):
     texture = texture[..., :3]
   canvas[x: x + w, y: y + h] = texture
 
-def _draw_alpha(canvas, pos, texture):
+def _draw_alpha(canvas, pos, texture, global_view = False):
   (x, y), (w, h) = pos, texture.shape[:2]
+  if global_view:
+    embed()
   if texture.shape[-1] == 4:
     alpha = texture[..., 3:].astype(np.float32) / 255
     texture = texture[..., :3].astype(np.float32) / 255
