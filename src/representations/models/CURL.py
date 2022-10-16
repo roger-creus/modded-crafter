@@ -19,12 +19,11 @@ class CURL_PL(pl.LightningModule):
             obs_shape=(1,64,64),
             z_dim=50,
             output_type="continuous",
-            path_clusters = '/home/roger/Desktop/modded-crafter/src/representations/trajectories/clusters',
-            device=None,
             **kwargs
             ):
         super(CURL_PL, self).__init__()
 
+        print("embedding size: " + str(z_dim))
         self.encoder = Encoder(obs_shape[0], z_dim)
         self.encoder_target = Encoder(obs_shape[0], z_dim)
 
@@ -32,8 +31,9 @@ class CURL_PL(pl.LightningModule):
         self.output_type = output_type
         
         self.dev = "cuda"
-        if path_clusters is not None:
-            self.path_clusters = Path(path_clusters)
+
+        if kwargs.get('load_clusters') is True:
+            self.path_clusters = Path("/home/roger/Desktop/modded-crafter/src/representations/trajectories/clusters")
             self.clusters = self.load_clusters()
 
     def encode(self, x, detach=False, ema=False):

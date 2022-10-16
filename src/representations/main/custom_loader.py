@@ -13,12 +13,18 @@ from pathlib import Path
 
 class CustomCrafterData(Dataset):
     def __init__(self, traj_list, path="src/representations/trajectories/observations/", delay=False, **kwargs) -> None:
-        self.path = Path(path)
+        
+        try:
+            self.path = Path(path + kwargs['trajectories'][0]) 
+            self.k_std = kwargs['k_std']
+            self.k_mean = kwargs['k_mean']
+        except:
+            self.path = Path(path + kwargs["cnn"]['trajectories'][0]) 
+
         self.traj_list = traj_list
         self.delay = delay
         self.dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
-        self.k_std = kwargs['k_std']
-        self.k_mean = kwargs['k_mean']
+        
         self.customLoad()
 
     def getTrajLastIdx(self, idx):
@@ -39,6 +45,7 @@ class CustomCrafterData(Dataset):
     def customLoad(self):
         print("Loading data...")
         data, list_idxs = [], []
+
 
         for i, traj in enumerate(self.traj_list):
             print(f"\tTraj: {i}", end ='\r')

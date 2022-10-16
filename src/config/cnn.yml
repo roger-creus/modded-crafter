@@ -1,0 +1,14 @@
+cnn:
+  k_std: 5
+  k_mean: 15
+  z_dim: 512
+  load_clusters: True # THIS HAS TO BE FALSE DURING TRAINING AND TRUE TO GENERATE THE MAPS
+  path_clusters: '/home/roger/Desktop/modded-crafter/src/representations/trajectories/clusters/cnn'
+  trajectories: ['env_125']
+test:
+  type: 'index'
+  shuffle: no
+  limit: 50000 # this is not used
+  load_clusters: True
+  path_weights: 'ppo-14254080.pt'
+  

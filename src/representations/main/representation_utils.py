@@ -13,7 +13,7 @@ from crafter.env import Env
 import warnings
 warnings.filterwarnings('ignore', '.*future.*', )
 
-from src.representations.main.custom_loader import *
+from src.representations.main.custom_loader import CustomCrafterData
 from src.representations.models.CURL import CURL_PL
 
 def trainValSplit(traj_list, split):
@@ -37,21 +37,27 @@ def get_loader(trajectories, conf, shuffle=False):
     train_dataloader = DataLoader(train_dataset, batch_size=1, shuffle=shuffle, num_workers=0)
     return train_dataloader
 
-def load_trajectories_positions():
+def load_trajectories_positions(trajectories):
     print("loading trajectories positions...")
-
     all_trajectories = []
-    files = sorted([x for x in os.listdir(f"src/representations/trajectories/positions/")],  key=lambda x: int(x.split('.')[0].split('_')[2]))
 
-    for file in files:
-        all_trajectories.append(np.load("src/representations/trajectories/positions/"+file))
+    for env_ in trajectories:
+        traj = env_.split("/")[1]
+        files = sorted([x for x in os.listdir("src/representations/trajectories/positions/" + traj)],  key=lambda x: int(x.split('.')[0].split('_')[2]))
+        
+        env_trajectories = []
+        for file in files:
+            env_trajectories.append(np.load("src/representations/trajectories/positions/" + traj + "/" + file))
+        
+        all_trajectories.append(env_trajectories)
 
-    f = np.concatenate(all_trajectories)
-    return f
+    #f = np.concatenate(all_trajectories)
+    return all_trajectories
 
 def compute_embeddings_curl(loader, encode):
-    print("computing embeddings...")
+    print("computing embeddings curl...")
     return np.array([encode(data[:,0].cuda()).detach().cpu().numpy() for data in loader]).squeeze()
+
 
 def compute_kmeans(embeddings, num_clusters):
     return KMeans(n_clusters=num_clusters, random_state=0).fit(embeddings)
@@ -61,7 +67,7 @@ def construct_map(enc):
 
     embeddings = compute_embeddings_curl(loader, enc.encode)
 
-    trajectories_positions = load_trajectories_positions()
+    trajectories_positions = load_trajectories_positions(enc.trajectories)
 
     index_map(trajectories_positions, embeddings, enc)
 
@@ -69,10 +75,11 @@ def index_map(trajectories_positions, embeddings, enc):
     print("Get index from all data points...")
     values = pd.DataFrame(columns=['x', 'y', 'k'])
 
-    colors = {0:'blue', 1:'green', 2:'red', 3:'purple', 4:'brown'}
+    colors = {0:(210./255. , 238./255., 130./255., 0.15), 1:(40./255., 67./255., 135./255., 0.15),  2:(251./255., 192./255., 147./255., 0.15)}
 
-    #embeddings = embeddings[0:5000, :]
-    #trajectories_positions = trajectories_positions[0:2500, :]
+    trajectories_positions = np.concatenate(trajectories_positions[0])
+
+    seed = int(enc.trajectories[0].split("/")[1].split("_")[1])
 
     cluster_mappings = []
     x_list = []
@@ -91,11 +98,10 @@ def index_map(trajectories_positions, embeddings, enc):
     values['k'] = cluster_mappings
     values['k'] = values['k'].astype('int32')
 
-    env = Env(seed = 1, view = (64,64))
+    env = Env(seed = seed, view = (64,64))
     obs = env.reset()
     world_img = env.render_world()
+
     plt.scatter(values['x'], values['y'], c=values['k'].map(colors))
     plt.imshow(world_img.transpose(1,0,2))
-    plt.savefig("index_map.png")
-
-    
+    plt.savefig("/home/roger/Desktop/modded-crafter/imgs/index_map_" + enc.trajectories[0].split("/")[1] + ".png")
