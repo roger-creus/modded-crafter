@@ -38,11 +38,13 @@ traj_num = args.traj_num
 envs_num = args.envs_num
 
 
-
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 agent = Agent().to(device)
-agent.load_state_dict(torch.load("/home/mila/r/roger.creus-castanyer/modded-crafter/src/checkpoints/ppo-14254080.pt"))
+agent.load_state_dict(torch.load("/home/roger/Desktop/modded-crafter/src/checkpoints/ppo-14254080.pt"))
+
+os.makedirs(args.save_path + "observations/")
+os.makedirs(args.save_path + "positions/")
 
 
 for env_ in range(envs_num):
@@ -50,9 +52,6 @@ for env_ in range(envs_num):
     env = Env(seed = args.seed + env_)  # Or CrafterNoReward-v1
 
     envs_path = "env_" + str(args.seed + env_) + "/"
-
-    os.makedirs(args.save_path + "observations/")
-    os.makedirs(args.save_path + "positions/")
 
     envs_obs_path = args.save_path + "observations/" + envs_path
     envs_pos_path = args.save_path + "positions/" + envs_path
@@ -69,6 +68,7 @@ for env_ in range(envs_num):
         steps = 0
         done = False
         obs = env.reset("random")
+        obs, reward, done, info = env.step(15)
         
         trajectory = []
         trajectory_positions = []
@@ -83,14 +83,16 @@ for env_ in range(envs_num):
             # scale imgs to [0,1], the model uses this format
             obs = np.array(obs).astype(np.float32) / 255.0
             
-            action, logprob, _, value = agent.get_action_and_value(torch.Tensor(obs).to(device))
+            action, logprob, _, value = agent.get_action_and_value(torch.Tensor(obs).unsqueeze(0).to(device))
             
-            obs, reward, done, info = env.step(action.cpu().numpy())
+            next_obs, reward, done, info = env.step(action.item())
             
             player_pos = np.array(info["player_pos"])
 
             trajectory.append(obs)
             trajectory_positions.append(player_pos)
+
+            obs = next_obs
 
         trajectory = np.array(trajectory)
         trajectory_positions = np.array(trajectory_positions)

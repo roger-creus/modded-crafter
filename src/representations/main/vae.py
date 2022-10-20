@@ -48,12 +48,18 @@ class VAE(VanillaVAE_PL):
         batch = batch.squeeze(1)
 
         recons, x, mu, log_var = self.forward(batch)
-        
+
+
         losses = self.loss_function(recons, x, mu, log_var)
-        
+
         loss = losses["loss"]
         recon_loss = losses["Reconstruction_Loss"]
         kl_loss = losses["KLD"]
+
+        # loggers
+        self.sample(num_samples = 8, current_device = 0, logger = self.logger)
+        batch_plot = batch[0:8, :, :, :]
+        self.generate(batch_plot, logger = self.logger)
 
         self.log('total_loss/train_epoch', loss, on_step=False, on_epoch=True)
         self.log('recon_loss/train_epoch', recon_loss, on_step=False, on_epoch=True)
@@ -79,7 +85,7 @@ class VAE(VanillaVAE_PL):
         return loss
 
     def configure_optimizers(self):
-        return optim.Adam(self.parameters(), lr=self.lr, amsgrad=False)
+        return optim.Adam(params=self.parameters(), lr=self.lr, weight_decay=1e-5)
 
     def train_dataloader(self):
         train_dataset = CustomCrafterData(self.trajectories_train, **self.conf)
@@ -91,10 +97,9 @@ class VAE(VanillaVAE_PL):
         val_dataloader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False, num_workers=10)
         return val_dataloader
 
-    """
-    def on_epoch_end(self):
-        self.model.sample(num_samples = 10, current_device = 0, logger = self.logger)
-    """
+    
+    def on_train_epoch_end(self):
+        self.sample(num_samples = 8, current_device = 0, logger = self.logger)
 
     def store_clusters(self):
         num_clusters = 3

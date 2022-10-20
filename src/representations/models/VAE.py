@@ -3,71 +3,74 @@ from torch import nn
 from torch.nn import functional as F
 import pytorch_lightning as pl
 from IPython import embed
+import matplotlib.pyplot as plt
 
 
 class VanillaVAE_PL(pl.LightningModule):
+
+
     def __init__(self,
                  in_channels: int,
                  latent_dim: int,
-                 hidden_dims: None,
+                 hidden_dims,
                  **kwargs) -> None:
         super(VanillaVAE_PL, self).__init__()
 
-        self.latent_dim = latent_dim
+
         self.kl_weight = kwargs["kl_weight"]
+        self.latent_dim = latent_dim
 
         modules = []
         if hidden_dims is None:
-            #hidden_dims = [32, 64, 64, 64, 64]
-            hidden_dims = [32, 64, 128]
+            hidden_dims = [32, 64, 128, 256, 512]
 
-        kernels = [4,4,3]
-        strides = [4,2,1]
-        
-        c=0
         # Build Encoder
         for h_dim in hidden_dims:
             modules.append(
                 nn.Sequential(
                     nn.Conv2d(in_channels, out_channels=h_dim,
-                              kernel_size= kernels[c], stride= strides[c]),
+                              kernel_size= 3, stride= 2, padding  = 1),
                     nn.BatchNorm2d(h_dim),
                     nn.LeakyReLU())
             )
             in_channels = h_dim
-            c+=1
 
         self.encoder = nn.Sequential(*modules)
-        self.fc_mu = nn.Linear(hidden_dims[-1] * 5 * 5, latent_dim)
-        self.fc_var = nn.Linear(hidden_dims[-1] * 5 * 5, latent_dim)
+        self.fc_mu = nn.Linear(hidden_dims[-1]*4, latent_dim)
+        self.fc_var = nn.Linear(hidden_dims[-1]*4, latent_dim)
+
 
         # Build Decoder
         modules = []
 
-        self.decoder_input = nn.Linear(latent_dim, hidden_dims[-1] * 5 * 5)
+        self.decoder_input = nn.Linear(latent_dim, hidden_dims[-1] * 4)
 
         hidden_dims.reverse()
-        kernels.reverse()
-        strides.reverse()
 
         for i in range(len(hidden_dims) - 1):
             modules.append(
                 nn.Sequential(
                     nn.ConvTranspose2d(hidden_dims[i],
                                        hidden_dims[i + 1],
-                                       kernel_size=kernels[i],
-                                       stride = strides[i]),
+                                       kernel_size=3,
+                                       stride = 2,
+                                       padding=1,
+                                       output_padding=1),
                     nn.BatchNorm2d(hidden_dims[i + 1]),
                     nn.LeakyReLU())
             )
+
+
 
         self.decoder = nn.Sequential(*modules)
 
         self.final_layer = nn.Sequential(
                             nn.ConvTranspose2d(hidden_dims[-1],
                                                hidden_dims[-1],
-                                               kernel_size=4,
-                                               stride=4),
+                                               kernel_size=3,
+                                               stride=2,
+                                               padding=1,
+                                               output_padding=1),
                             nn.BatchNorm2d(hidden_dims[-1]),
                             nn.LeakyReLU(),
                             nn.Conv2d(hidden_dims[-1], out_channels= 1,
@@ -99,7 +102,7 @@ class VanillaVAE_PL(pl.LightningModule):
         :return: (Tensor) [B x C x H x W]
         """
         result = self.decoder_input(z)
-        result = result.view(-1, 128, 5, 5)
+        result = result.view(-1, 512, 2, 2)
         result = self.decoder(result)
         result = self.final_layer(result)
         return result
@@ -137,7 +140,8 @@ class VanillaVAE_PL(pl.LightningModule):
         log_var = args[3]
 
         kld_weight = self.kl_weight # Account for the minibatch samples from the dataset
-        recons_loss = F.mse_loss(recons, input)
+        recons_loss =F.mse_loss(recons, input)
+
 
         kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)
 
@@ -145,8 +149,8 @@ class VanillaVAE_PL(pl.LightningModule):
         return {'loss': loss, 'Reconstruction_Loss':recons_loss.detach(), 'KLD':-kld_loss.detach()}
 
     def sample(self,
-               num_samples,
-               current_device, logger):
+               num_samples:int,
+               current_device: int, logger = None):
         """
         Samples from the latent space and return the corresponding
         image space map.
@@ -158,18 +162,43 @@ class VanillaVAE_PL(pl.LightningModule):
                         self.latent_dim)
 
         z = z.to(current_device)
-        
+
         samples = self.decode(z)
         
-        logger.experiment.log({'Samples': fig_coord})
-        
+        if logger is not None:
+            fig, axs = plt.subplots(1, num_samples, sharey=True, figsize=(18, 2))
+
+            for s in range(num_samples):
+                axs[s].imshow(samples[s,:,:,:].permute(1,2,0).cpu().detach().numpy(), interpolation='nearest')
+                axs[s].axis('off')
+            
+            logger.experiment.log({'VAE samples': fig})
+            plt.close(fig)
+
         return samples
 
-    def generate(self, x, **kwargs):
+    def generate(self, x, logger):
         """
         Given an input image x, returns the reconstructed image
         :param x: (Tensor) [B x C x H x W]
         :return: (Tensor) [B x C x H x W]
         """
+        recons = self.forward(x)[0]
+        
+        num_examples = x.size(0)
+        
+        if logger is not None:
 
-        return self.forward(x)[0]
+            fig, axs = plt.subplots(2, num_examples, figsize=(18, 4))
+
+            for s in range(num_examples):
+                axs[0,s].imshow(x[s,:,:,:].permute(1,2,0).cpu().detach().numpy(), interpolation='nearest')
+                axs[1,s].imshow(recons[s,:,:,:].permute(1,2,0).cpu().detach().numpy(), interpolation='nearest')
+                
+                axs[0,s].axis('off')
+                axs[1,s].axis('off')
+            
+            logger.experiment.log({'VAE reconstructions': fig})
+            plt.close(fig)
+
+        return recons
