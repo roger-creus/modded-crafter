@@ -8,7 +8,7 @@ split: 0.90
 img_size: 64
 
 vae:
-  z_dim: 512
+  z_dim: 10
   kl_weight: 0.1
   trajectories: ['env_125']
   load_clusters: True # THIS HAS TO BE FALSE DURING TRAINING AND TRUE TO GENERATE THE MAPS

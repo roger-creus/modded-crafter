@@ -18,39 +18,45 @@ class VanillaVAE_PL(pl.LightningModule):
 
         modules = []
         if hidden_dims is None:
-            hidden_dims = [32, 64, 128, 256, 512]
+            #hidden_dims = [32, 64, 64, 64, 64]
+            hidden_dims = [32, 64, 128]
 
+        kernels = [4,4,3]
+        strides = [4,2,1]
+        
+        c=0
         # Build Encoder
         for h_dim in hidden_dims:
             modules.append(
                 nn.Sequential(
                     nn.Conv2d(in_channels, out_channels=h_dim,
-                              kernel_size= 3, stride= 2, padding  = 1),
+                              kernel_size= kernels[c], stride= strides[c]),
                     nn.BatchNorm2d(h_dim),
                     nn.LeakyReLU())
             )
             in_channels = h_dim
+            c+=1
 
         self.encoder = nn.Sequential(*modules)
-        self.fc_mu = nn.Linear(hidden_dims[-1]*4, latent_dim)
-        self.fc_var = nn.Linear(hidden_dims[-1]*4, latent_dim)
+        self.fc_mu = nn.Linear(hidden_dims[-1] * 5 * 5, latent_dim)
+        self.fc_var = nn.Linear(hidden_dims[-1] * 5 * 5, latent_dim)
 
         # Build Decoder
         modules = []
 
-        self.decoder_input = nn.Linear(latent_dim, hidden_dims[-1] * 4)
+        self.decoder_input = nn.Linear(latent_dim, hidden_dims[-1] * 5 * 5)
 
         hidden_dims.reverse()
+        kernels.reverse()
+        strides.reverse()
 
         for i in range(len(hidden_dims) - 1):
             modules.append(
                 nn.Sequential(
                     nn.ConvTranspose2d(hidden_dims[i],
                                        hidden_dims[i + 1],
-                                       kernel_size=3,
-                                       stride = 2,
-                                       padding=1,
-                                       output_padding=1),
+                                       kernel_size=kernels[i],
+                                       stride = strides[i]),
                     nn.BatchNorm2d(hidden_dims[i + 1]),
                     nn.LeakyReLU())
             )
@@ -60,10 +66,8 @@ class VanillaVAE_PL(pl.LightningModule):
         self.final_layer = nn.Sequential(
                             nn.ConvTranspose2d(hidden_dims[-1],
                                                hidden_dims[-1],
-                                               kernel_size=3,
-                                               stride=2,
-                                               padding=1,
-                                               output_padding=1),
+                                               kernel_size=4,
+                                               stride=4),
                             nn.BatchNorm2d(hidden_dims[-1]),
                             nn.LeakyReLU(),
                             nn.Conv2d(hidden_dims[-1], out_channels= 1,
@@ -95,7 +99,7 @@ class VanillaVAE_PL(pl.LightningModule):
         :return: (Tensor) [B x C x H x W]
         """
         result = self.decoder_input(z)
-        result = result.view(-1, 512, 2, 2)
+        result = result.view(-1, 128, 5, 5)
         result = self.decoder(result)
         result = self.final_layer(result)
         return result
