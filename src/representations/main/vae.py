@@ -49,7 +49,6 @@ class VAE(VanillaVAE_PL):
 
         recons, x, mu, log_var = self.forward(batch)
 
-
         losses = self.loss_function(recons, x, mu, log_var)
 
         loss = losses["loss"]
@@ -57,9 +56,10 @@ class VAE(VanillaVAE_PL):
         kl_loss = losses["KLD"]
 
         # loggers
-        self.sample(num_samples = 8, current_device = 0, logger = self.logger)
-        batch_plot = batch[0:8, :, :, :]
-        self.generate(batch_plot, logger = self.logger)
+        if batch_idx % 500 == 0:
+            self.sample(num_samples = 8, current_device = 0, logger = self.logger)
+            batch_plot = batch[0:8, :, :, :]
+            self.generate(batch_plot, logger = self.logger)
 
         self.log('total_loss/train_epoch', loss, on_step=False, on_epoch=True)
         self.log('recon_loss/train_epoch', recon_loss, on_step=False, on_epoch=True)
