@@ -12,6 +12,42 @@ from pathlib import Path
 
 
 class CustomCrafterData(Dataset):
+    def __init__(self, traj_list, path="src/representations/trajectories/", delay=False, **kwargs) -> None:
+        
+        self.path = Path(path) 
+        #self.path = Path(path + kwargs["cnn"]['trajectories'][0]) 
+        self.traj_list = traj_list
+        self.dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
+        self.customLoad()
+
+    def getImage(self, idx):
+        query = torch.FloatTensor(self.data[idx])
+        return query
+
+    def customLoad(self):
+        print("Loading data...")
+        data = []
+
+        for i, traj in enumerate(self.traj_list):
+            print(f"\tTraj: {i}", end ='\r')
+            obs = np.load(str(self.path) + "/" + traj, allow_pickle=True)
+            data.append(obs.flatten())
+    
+        data = np.concatenate(np.array(data, dtype='object')).reshape(-1, 64, 64, 1)
+        self.data = data
+
+        print("Loaded data of shape: " + str(data.shape))
+
+    def __len__(self) -> int:
+        return len(self.data)
+
+    def __getitem__(self, index):
+        # Get query obs
+        x = self.getImage(index)
+        x = x.unsqueeze(0).permute(0,3,1,2)
+        return x
+
+class CustomCrafterData_CURL(Dataset):
     def __init__(self, traj_list, path="src/representations/trajectories/observations/", delay=False, **kwargs) -> None:
         
         try:

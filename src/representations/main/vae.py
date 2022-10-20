@@ -12,35 +12,30 @@ from torch.utils.data import DataLoader
 
 from src.representations.main.custom_loader import *
 from src.representations.main.representation_utils import *
-from src.representations.models.CURL import CURL_PL
+from src.representations.models.VAE import VanillaVAE_PL
 
 from IPython import embed
 
 
-class CURL(CURL_PL):
+class VAE(VanillaVAE_PL):
     def __init__(self, conf):
         
         img_size = conf['img_size']
         obs_shape = (1, img_size, img_size)
-        conf['curl']['obs_shape'] = obs_shape
-        self._load_clusters = conf["curl"]["load_clusters"]
+        conf['vae']['obs_shape'] = obs_shape
+        self._load_clusters = conf["vae"]["load_clusters"]
 
+        super(VAE, self).__init__(obs_shape[0], conf['vae']['z_dim'], hidden_dims = None, **conf['vae'])
 
-        super(CURL, self).__init__(**conf['curl'])
-
-        self.path_clusters = Path("src/representations/trajectories/clusters/curl")
+        self.path_clusters = Path("src/representations/trajectories/clusters/vae")
         self.experiment = conf['experiment']
         self.batch_size = conf['batch_size']
         self.lr = conf['lr']
         self.split = conf['split']
-        self.delay = conf['delay']
         self.trajectories = conf['trajectories']
         self.trajectories_train, self.trajectories_val = get_train_val_split(self.trajectories, self.split)
 
-        self.tau = conf['tau']
-        self.soft_update = conf['soft_update']
-
-        self.conf = conf['curl']
+        self.conf = conf['vae']
         
         self.criterion = torch.nn.CrossEntropyLoss()
         self.test = conf['test']
@@ -49,36 +44,37 @@ class CURL(CURL_PL):
         self.shuffle = self.test['shuffle']
         self.limit = self.test['limit']
 
-
-    def forward(self, data):
-        key, query = data[:,0], data[:,1]
-
-        # Forward tensors through encoder
-        z_a = self.encode(key)
-        z_pos = self.encode(query, ema=True)
-
-        # Compute distance
-        logits = self.compute_train(z_a, z_pos)
-        labels = torch.arange(logits.shape[0]).long().to(self.device)
-
-        return logits, labels
-
     def training_step(self, batch, batch_idx):
-        logits, labels = self(batch)
-        loss = self.criterion(logits, labels)
+        batch = batch.squeeze(1)
 
-        self.log('loss/train_epoch', loss, on_step=False, on_epoch=True)
+        recons, x, mu, log_var = self.forward(batch)
+        
+        losses = self.loss_function(recons, x, mu, log_var)
+        
+        loss = losses["loss"]
+        recon_loss = losses["Reconstruction_Loss"]
+        kl_loss = losses["KLD"]
 
-        if batch_idx % self.soft_update == 0:
-            self.soft_update_params()
+        self.log('total_loss/train_epoch', loss, on_step=False, on_epoch=True)
+        self.log('recon_loss/train_epoch', recon_loss, on_step=False, on_epoch=True)
+        self.log('kl_loss/train_epoch', kl_loss, on_step=False, on_epoch=True)
 
         return loss
 
     def validation_step(self, batch, batch_idx):
-        logits, labels = self(batch)
-        loss = self.criterion(logits, labels)
+        batch = batch.squeeze(1)
+        
+        recons, x, mu, log_var = self(batch)
+        
+        losses = self.loss_function(recons, x, mu, log_var)
+        
+        loss = losses["loss"]
+        recon_loss = losses["Reconstruction_Loss"]
+        kl_loss = losses["KLD"]
 
-        self.log('loss/val_epoch', loss, on_step=False, on_epoch=True)
+        self.log('total_loss/val_epoch', loss, on_step=False, on_epoch=True)
+        self.log('recon_loss/val_epoch', recon_loss, on_step=False, on_epoch=True)
+        self.log('kl_loss/val_epoch', kl_loss, on_step=False, on_epoch=True)
 
         return loss
 
@@ -86,24 +82,15 @@ class CURL(CURL_PL):
         return optim.Adam(self.parameters(), lr=self.lr, amsgrad=False)
 
     def train_dataloader(self):
-        train_dataset = CustomCrafterData_CURL(self.trajectories_train, delay=self.delay, **self.conf)
+        train_dataset = CustomCrafterData(self.trajectories_train, **self.conf)
         train_dataloader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=10)
         return train_dataloader
 
     def val_dataloader(self):
-        val_dataset = CustomCrafterData_CURL(self.trajectories_val, delay=self.delay, **self.conf)
+        val_dataset = CustomCrafterData(self.trajectories_val, **self.conf)
         val_dataloader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False, num_workers=10)
         return val_dataloader
 
-    def soft_update_params(self):
-        net = self.encoder
-        target_net = self.encoder_target
-        for param, target_param in zip(net.parameters(), target_net.parameters()):
-            target_param.data.copy_(
-                self.tau * param.data + (1 - self.tau) * target_param.data
-            )
-
-    
     def store_clusters(self):
         num_clusters = 3
         

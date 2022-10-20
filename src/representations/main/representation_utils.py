@@ -28,8 +28,14 @@ def trainValSplit(traj_list, split):
 
 def get_train_val_split(t, split):
     path = Path('src/representations/trajectories/')
-    items = sorted(os.listdir(path / t[0]), key=lambda x: int(x.split('.')[0].split('_')[2]))
-    return trainValSplit(items, split)
+    all_trajectories = []
+    for l in t:
+        items = sorted(os.listdir(path / l), key=lambda x: int(x.split('.')[0].split('_')[2]))
+        items = [l + "/" + s for s in items]
+        all_trajectories.append(items)
+
+    all_trajectories = np.concatenate(all_trajectories)
+    return trainValSplit(all_trajectories, split)
 
 def get_loader(trajectories, conf, shuffle=False):
     train, _ = get_train_val_split(trajectories, 1)

@@ -1,0 +1,22 @@
+experiment: 'crafter_vae'
+environment: 'CrafterReward-v1'
+trajectories: ['observations/env_125','observations/env_126','observations/env_127']
+epochs: 100
+batch_size: 32
+lr: 0.001
+split: 0.90
+img_size: 64
+
+vae:
+  z_dim: 512
+  kl_weight: 0.1
+  trajectories: ['env_125']
+  load_clusters: True # THIS HAS TO BE FALSE DURING TRAINING AND TRUE TO GENERATE THE MAPS
+  path_clusters: '/home/roger/Desktop/modded-crafter/src/representations/trajectories/clusters/vae'
+test:
+  type: 'index'
+  shuffle: no
+  limit: 50000 # this is not used
+  load_clusters: True
+  path_weights: 'epoch=99-step=210100.ckpt'
+  
