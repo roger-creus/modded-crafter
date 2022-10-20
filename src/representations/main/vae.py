@@ -91,6 +91,11 @@ class VAE(VanillaVAE_PL):
         val_dataloader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False, num_workers=10)
         return val_dataloader
 
+    """
+    def on_epoch_end(self):
+        self.model.sample(num_samples = 10, current_device = 0, logger = self.logger)
+    """
+
     def store_clusters(self):
         num_clusters = 3
         

@@ -1,6 +1,6 @@
 experiment: 'crafter_vae'
 environment: 'CrafterReward-v1'
-trajectories: ['observations/env_125','observations/env_126','observations/env_127']
+trajectories: ['observations/env_125','observations/env_126','observations/env_127','observations/env_128','observations/env_129','observations/env_130','observations/env_131','observations/env_132','observations/env_133','observations/env_134']
 epochs: 100
 batch_size: 32
 lr: 0.001

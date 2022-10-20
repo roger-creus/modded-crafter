@@ -30,7 +30,8 @@ trainer = pl.Trainer(
     devices=1,
     max_epochs=conf['epochs'],
     logger=wandb_logger,
-    default_root_dir="/home/roger/Desktop/modded-crafter/src/representations/results/" + conf['experiment']
+    #default_root_dir="/home/roger/Desktop/modded-crafter/src/representations/results/" + conf['experiment']
+    default_root_dir = os.get["SLURM_TMPDIR"]
 )
 
 trainer.fit(vae)
