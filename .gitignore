@@ -9,3 +9,9 @@ __pycache__/
 *.npy
 /*.npy
 /src/trajectories/*
+
+/wandb/*
+wandb/*
+
+/*.ckpt
+*.ckpt
