@@ -14,8 +14,8 @@ from pathlib import Path
 class CustomCrafterData(Dataset):
     def __init__(self, traj_list, path="src/representations/trajectories/", delay=False, **kwargs) -> None:
         
-        self.path = Path(path) 
-        #self.path = Path(path + kwargs["cnn"]['trajectories'][0]) 
+        #self.path = Path(path) 
+        self.path = Path("/network/scratch/r/roger.creus-castanyer/tmp/") 
         self.traj_list = traj_list
         self.dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
         self.customLoad()
@@ -33,7 +33,10 @@ class CustomCrafterData(Dataset):
             obs = np.load(str(self.path) + "/" + traj, allow_pickle=True)
             data.append(obs.flatten())
     
-        data = np.concatenate(np.array(data, dtype='object')).reshape(-1, 64, 64, 1)
+        data = np.concatenate(np.array(data, dtype='object'))
+        print("current shape:", data.shape)
+        data = data.reshape(-1, 64, 64, 3)
+        print("reshaped shape:", data.shape)
         self.data = data
 
         print("Loaded data of shape: " + str(data.shape))
@@ -44,14 +47,20 @@ class CustomCrafterData(Dataset):
     def __getitem__(self, index):
         # Get query obs
         x = self.getImage(index)
-        x = x.unsqueeze(0).permute(0,3,1,2)
+
+        # for RGB images only
+        x = torch.div(x.unsqueeze(0).permute(0,3,1,2), 255)
         return x
+
+
+
 
 class CustomCrafterData_CURL(Dataset):
     def __init__(self, traj_list, path="src/representations/trajectories/observations/", delay=False, **kwargs) -> None:
         
         try:
-            self.path = Path(path + kwargs['trajectories'][0]) 
+            #self.path = Path(path + kwargs['trajectories'][0]) 
+            self.path = Path("/network/scratch/r/roger.creus-castanyer/tmp/") 
             self.k_std = kwargs['k_std']
             self.k_mean = kwargs['k_mean']
         except:
@@ -74,7 +83,11 @@ class CustomCrafterData_CURL(Dataset):
 
     def getImages(self, idx, key_idx):
         query = torch.FloatTensor(self.data[idx])
+        # for RGB images only
+        query = torch.div(query, 255)
+        
         key = torch.FloatTensor(self.data[key_idx])
+        key = torch.div(key, 255)
         return key, query
 
 
@@ -82,14 +95,13 @@ class CustomCrafterData_CURL(Dataset):
         print("Loading data...")
         data, list_idxs = [], []
 
-
         for i, traj in enumerate(self.traj_list):
             print(f"\tTraj: {i}", end ='\r')
             obs = np.load(str(self.path) + "/" + traj, allow_pickle=True)
             data.append(obs)
             list_idxs.append(obs.shape[0])
 
-        data = np.concatenate(np.array(data, dtype='object')).reshape(-1, 64, 64, 1)
+        data = np.concatenate(np.array(data, dtype='object')).reshape(-1, 64, 64, 3)
         self.data = data
         self.list_idxs = list_idxs
 

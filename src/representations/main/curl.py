@@ -21,14 +21,14 @@ class CURL(CURL_PL):
     def __init__(self, conf):
         
         img_size = conf['img_size']
-        obs_shape = (1, img_size, img_size)
+        obs_shape = (3, img_size, img_size)
         conf['curl']['obs_shape'] = obs_shape
         self._load_clusters = conf["curl"]["load_clusters"]
 
 
         super(CURL, self).__init__(**conf['curl'])
 
-        self.path_clusters = Path("src/representations/trajectories/clusters/curl")
+        self.path_clusters = Path("/home/mila/r/roger.creus-castanyer/modded-crafter/src/representations/clusters/curl")
         self.experiment = conf['experiment']
         self.batch_size = conf['batch_size']
         self.lr = conf['lr']
@@ -105,9 +105,9 @@ class CURL(CURL_PL):
 
     
     def store_clusters(self):
-        num_clusters = 3
+        num_clusters = 5
         
-        loader = get_loader(
+        loader = get_loader_CURL(
             self.trajectories,
             self.conf)
 

@@ -56,7 +56,7 @@ class VAE(VanillaVAE_PL):
         kl_loss = losses["KLD"]
 
         # loggers
-        if batch_idx % 500 == 0:
+        if batch_idx % 2000 == 0:
             self.sample(num_samples = 8, current_device = 0, logger = self.logger)
             batch_plot = batch[0:8, :, :, :]
             self.generate(batch_plot, logger = self.logger)
@@ -89,12 +89,12 @@ class VAE(VanillaVAE_PL):
 
     def train_dataloader(self):
         train_dataset = CustomCrafterData(self.trajectories_train, **self.conf)
-        train_dataloader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=10)
+        train_dataloader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=8)
         return train_dataloader
 
     def val_dataloader(self):
         val_dataset = CustomCrafterData(self.trajectories_val, **self.conf)
-        val_dataloader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False, num_workers=10)
+        val_dataloader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False, num_workers=8)
         return val_dataloader
 
     

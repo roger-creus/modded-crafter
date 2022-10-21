@@ -94,9 +94,6 @@ class Env(BaseClass):
 
         if self._world[center[0], center[1]][0] in constants.walkable and self._world._obj_map[center] == 0:
           correct_pos = True
-          print("correctly found a walkable start")
-        else:
-          print("no walkable position!")
     
       # set the player to the chosen positions. if it is not random, then its just the center of the map
       self._world.move(self._player, center)

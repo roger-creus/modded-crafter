@@ -16,7 +16,7 @@ class CURL_PL(pl.LightningModule):
     """
 
     def __init__(self,
-            obs_shape=(1,64,64),
+            obs_shape=(3,64,64),
             z_dim=50,
             output_type="continuous",
             **kwargs
@@ -33,7 +33,7 @@ class CURL_PL(pl.LightningModule):
         self.dev = "cuda"
 
         if kwargs.get('load_clusters') is True:
-            self.path_clusters = Path("/home/roger/Desktop/modded-crafter/src/representations/trajectories/clusters")
+            self.path_clusters = Path("/home/mila/r/roger.creus-castanyer/modded-crafter/src/representations/clusters/curl")
             self.clusters = self.load_clusters()
 
     def encode(self, x, detach=False, ema=False):

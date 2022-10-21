@@ -41,10 +41,10 @@ envs_num = args.envs_num
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 agent = Agent().to(device)
-agent.load_state_dict(torch.load("/home/roger/Desktop/modded-crafter/src/checkpoints/ppo-14254080.pt"))
+agent.load_state_dict(torch.load("/home/mila/r/roger.creus-castanyer/modded-crafter/src/checkpoints/ppo-14254080.pt"))
 
-os.makedirs(args.save_path + "observations/")
-os.makedirs(args.save_path + "positions/")
+os.makedirs(args.save_path + "/tmp/" + "observations/")
+os.makedirs(args.save_path + "/tmp/" + "positions/")
 
 
 for env_ in range(envs_num):
@@ -53,8 +53,8 @@ for env_ in range(envs_num):
 
     envs_path = "env_" + str(args.seed + env_) + "/"
 
-    envs_obs_path = args.save_path + "observations/" + envs_path
-    envs_pos_path = args.save_path + "positions/" + envs_path
+    envs_obs_path = args.save_path +  "/tmp/" + "observations/" + envs_path
+    envs_pos_path = args.save_path +  "/tmp/" + "positions/" + envs_path
     
     if not os.path.exists(envs_obs_path):
         os.makedirs(envs_obs_path)
@@ -76,14 +76,14 @@ for env_ in range(envs_num):
         while steps < traj_len and not done:
 
             # img to gray scale, eventually the model uses gray images
-            obs = cv2.cvtColor(obs, cv2.COLOR_RGB2GRAY)
-            obs = cv2.resize(obs, (64, 64), interpolation=cv2.INTER_AREA)
-            obs = obs[None,:, :]
+            gray_obs = cv2.cvtColor(obs, cv2.COLOR_RGB2GRAY)
+            gray_obs = cv2.resize(gray_obs, (64, 64), interpolation=cv2.INTER_AREA)
+            gray_obs = gray_obs[None,:, :]
             
             # scale imgs to [0,1], the model uses this format
-            obs = np.array(obs).astype(np.float32) / 255.0
+            gray_obs = np.array(gray_obs).astype(np.float32) / 255.0
             
-            action, logprob, _, value = agent.get_action_and_value(torch.Tensor(obs).unsqueeze(0).to(device))
+            action, logprob, _, value = agent.get_action_and_value(torch.Tensor(gray_obs).unsqueeze(0).to(device))
             
             next_obs, reward, done, info = env.step(action.item())
             

@@ -24,6 +24,8 @@ class VanillaVAE_PL(pl.LightningModule):
         if hidden_dims is None:
             hidden_dims = [32, 64, 128, 256, 512]
 
+        in_channels = 3
+
         # Build Encoder
         for h_dim in hidden_dims:
             modules.append(
@@ -73,7 +75,7 @@ class VanillaVAE_PL(pl.LightningModule):
                                                output_padding=1),
                             nn.BatchNorm2d(hidden_dims[-1]),
                             nn.LeakyReLU(),
-                            nn.Conv2d(hidden_dims[-1], out_channels= 1,
+                            nn.Conv2d(hidden_dims[-1], out_channels= 3,
                                       kernel_size= 3, padding= 1),
                             nn.Tanh())
 

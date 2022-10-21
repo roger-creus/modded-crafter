@@ -16,7 +16,9 @@ parser.add_argument('--envs-num', type=int, default=1,
                     help='num of different environments')
 args = parser.parse_args()
 
-positions_path = 'src/representations/trajectories/positions/'
+save_path = "/home/mila/r/roger.creus-castanyer/modded-crafter/imgs/"
+
+positions_path = os.environ["SCRATCH"] + "/tmp/positions/"
 envs_num = args.envs_num
 
 for env_ in range(envs_num):
@@ -36,4 +38,4 @@ for env_ in range(envs_num):
   world_img = env.render_world()
   plt.imshow(world_img.transpose(1,0,2))
 
-  plt.savefig("world_seed_" + str(env_path) + "_with_trajectories.png")
+  plt.savefig(save_path + "world_seed_" + str(env_path) + "_with_trajectories.png")

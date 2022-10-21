@@ -14,7 +14,7 @@ setSeed(0)
 assert len(sys.argv) == 2, "Indicate a configuration file like 'config_0.0'"
 conf = getConfig(sys.argv[1])
     
-path_weights = Path('/home/roger/Desktop/modded-crafter/crafter/3fpanc4e/checkpoints')
+path_weights = Path('/home/mila/r/roger.creus-castanyer/modded-crafter/crafter/2vl3hd9z/checkpoints')
 
 conf['curl']['device'] = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

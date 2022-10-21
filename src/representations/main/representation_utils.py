@@ -13,7 +13,7 @@ from crafter.env import Env
 import warnings
 warnings.filterwarnings('ignore', '.*future.*', )
 
-from src.representations.main.custom_loader import CustomCrafterData
+from src.representations.main.custom_loader import *
 from src.representations.models.CURL import CURL_PL
 
 def trainValSplit(traj_list, split):
@@ -27,7 +27,8 @@ def trainValSplit(traj_list, split):
 
 
 def get_train_val_split(t, split):
-    path = Path('src/representations/trajectories/')
+    #path = Path('src/representations/trajectories/')
+    path = Path("/network/scratch/r/roger.creus-castanyer/tmp/")
     all_trajectories = []
     for l in t:
         items = sorted(os.listdir(path / l), key=lambda x: int(x.split('.')[0].split('_')[2]))
@@ -43,22 +44,25 @@ def get_loader(trajectories, conf, shuffle=False):
     train_dataloader = DataLoader(train_dataset, batch_size=1, shuffle=shuffle, num_workers=0)
     return train_dataloader
 
+def get_loader_CURL(trajectories, conf, shuffle=False):
+    train, _ = get_train_val_split(trajectories, 1)
+    train_dataset = CustomCrafterData_CURL(train, delay=False, **conf)
+    train_dataloader = DataLoader(train_dataset, batch_size=1, shuffle=shuffle, num_workers=0)
+    return train_dataloader
+
 def load_trajectories_positions(trajectories):
     print("loading trajectories positions...")
-    all_trajectories = []
-
-    for env_ in trajectories:
-        traj = env_.split("/")[1]
-        files = sorted([x for x in os.listdir("src/representations/trajectories/positions/" + traj)],  key=lambda x: int(x.split('.')[0].split('_')[2]))
+    env_path = trajectories[0].split("/")[1]
+    path_positions = os.environ["SCRATCH"] + "/tmp/positions/" + env_path + "/"
+    
+    files = sorted([x for x in os.listdir(path_positions)],  key=lambda x: int(x.split('.')[0].split('_')[2]))
         
-        env_trajectories = []
-        for file in files:
-            env_trajectories.append(np.load("src/representations/trajectories/positions/" + traj + "/" + file))
+    trajectories = []
+    for file in files:
+        trajectories.append(np.load(path_positions + file))
         
-        all_trajectories.append(env_trajectories)
-
-    #f = np.concatenate(all_trajectories)
-    return all_trajectories
+    f = np.concatenate(trajectories)
+    return f
 
 def compute_embeddings_curl(loader, encode):
     print("computing embeddings curl...")
@@ -81,9 +85,8 @@ def index_map(trajectories_positions, embeddings, enc):
     print("Get index from all data points...")
     values = pd.DataFrame(columns=['x', 'y', 'k'])
 
-    colors = {0:(210./255. , 238./255., 130./255., 0.15), 1:(40./255., 67./255., 135./255., 0.15),  2:(251./255., 192./255., 147./255., 0.15)}
-
-    trajectories_positions = np.concatenate(trajectories_positions[0])
+    #colors = {0:(210./255. , 238./255., 130./255., 0.15), 1:(40./255., 67./255., 135./255., 0.15),  2:(251./255., 192./255., 147./255., 0.15)}
+    colors = {0: (1,0,0,0.05), 1: (0,1,0,0.05), 2: (0,0,1,0.05), 3: (1,1,0,0.05), 4: (1,0,1,0.05)}
 
     seed = int(enc.trajectories[0].split("/")[1].split("_")[1])
 
@@ -110,4 +113,4 @@ def index_map(trajectories_positions, embeddings, enc):
 
     plt.scatter(values['x'], values['y'], c=values['k'].map(colors))
     plt.imshow(world_img.transpose(1,0,2))
-    plt.savefig("/home/roger/Desktop/modded-crafter/imgs/index_map_" + enc.trajectories[0].split("/")[1] + ".png")
+    plt.savefig("/home/mila/r/roger.creus-castanyer/modded-crafter/imgs/index_map_" + enc.trajectories[0].split("/")[1] + ".png")
