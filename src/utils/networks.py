@@ -5,6 +5,8 @@ from torch.distributions.categorical import Categorical
 from numpy.linalg import norm
 
 from src.utils.utils import * 
+from src.representations.models.VAE import * 
+from src.representations.models.CURL import * 
 
 class Encoder(nn.Module):
     def __init__(self, in_channels = 1, z_dim = 512, hidden_channels = 32, stride = 4):
@@ -27,24 +29,56 @@ class Encoder(nn.Module):
 
 
 class Agent(nn.Module):
-    def __init__(self, num_actions = 17, in_channels = 1, z_dim = 512, hidden_channels = 32,conf = None):
+    def __init__(self, pretrained_curl = False, pretrained_vae = False, fine_tune = False, num_actions = 17, in_channels = 1, z_dim = 512, hidden_channels = 32,conf = None):
         super().__init__()
         
-        self.network = nn.Sequential(
-            layer_init(nn.Conv2d(in_channels, hidden_channels, 4, stride=4)),
-            nn.ReLU(),
-            layer_init(nn.Conv2d(hidden_channels, hidden_channels * 2, 4, stride=2)),
-            nn.ReLU(),
-            layer_init(nn.Conv2d(hidden_channels * 2, hidden_channels * 2, 3, stride=1)),
-            nn.ReLU(),
-            nn.Flatten(),
-            layer_init(nn.Linear(hidden_channels * 2 * 5 * 5, z_dim)),
-            nn.ReLU(),
-        )
 
-        self.actor = layer_init(nn.Linear(512, num_actions), std=0.01)
-        self.critic = layer_init(nn.Linear(512, 1), std=1)
         self.dev = "cuda"
+
+        if pretrained_curl == True:
+            self.network = CURL_PL(z_dim=256)
+            self.network.load_state_dict(torch.load("/home/mila/r/roger.creus-castanyer/modded-crafter/crafter/2vl3hd9z/checkpoints/epoch=29-step=253410.ckpt")["state_dict"])
+            self.network = self.network.encoder
+
+            for param in self.network.parameters():
+                param.requires_grad = True
+
+            self.encoder_used = "curl"
+        
+            print("TRAINING WITH CURL")
+
+        elif pretrained_vae == True:
+            self.network = VanillaVAE_PL(latent_dim = 256)
+            self.network.load_state_dict(torch.load("/home/mila/r/roger.creus-castanyer/modded-crafter/crafter/9wbbe8c7/checkpoints/epoch=29-step=253410.ckpt")["state_dict"])
+
+            for name, param in self.network.named_parameters():
+                if "decoder" in name or "final" in name:
+                    param.requires_grad = False
+                else:
+                    param.requires_grad = True
+                    print("param that will be finetuned:", name)
+
+            self.encoder_used = "vae"
+
+            print("TRAINING WITH VAE")
+                    
+        else:
+            self.network = nn.Sequential(
+                layer_init(nn.Conv2d(in_channels, hidden_channels, 4, stride=4)),
+                nn.ReLU(),
+                layer_init(nn.Conv2d(hidden_channels, hidden_channels * 2, 4, stride=2)),
+                nn.ReLU(),
+                layer_init(nn.Conv2d(hidden_channels * 2, hidden_channels * 2, 3, stride=1)),
+                nn.ReLU(),
+                nn.Flatten(),
+                layer_init(nn.Linear(hidden_channels * 2 * 5 * 5, z_dim)),
+                nn.ReLU(),
+            )
+
+            self.encoder_used = "vanilla"
+
+        self.actor = layer_init(nn.Linear(256, num_actions), std=0.01)
+        self.critic = layer_init(nn.Linear(256, 1), std=1)
 
         if conf is not None:
             self.trajectories = conf["cnn"]["trajectories"]
@@ -56,15 +90,19 @@ class Agent(nn.Module):
                 self.clusters = self.load_clusters()
 
     def encode(self, x):
+        if self.encoder_used == "vae":
+            mu, log_var = self.network.encode(x)
+            return self.network.reparameterize(mu, log_var)
+            
         return self.network(x)
 
     def get_value(self, x):
         #x = x.squeeze(2)
-        return self.critic(self.network(x))
+        return self.critic(self.encode(x))
 
     def get_action_and_value(self, x, action=None):
         #x = x.squeeze(2)
-        hidden = self.network(x)
+        hidden = self.encode(x)
         logits = self.actor(hidden)
         
         probs = Categorical(logits=logits)

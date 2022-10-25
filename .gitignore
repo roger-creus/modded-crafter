@@ -12,6 +12,8 @@ __pycache__/
 
 /wandb/*
 wandb/*
+/src/wandb/*
+src/wandb/*
 
 /*.ckpt
 *.ckpt

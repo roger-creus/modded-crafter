@@ -1,7 +1,11 @@
 model_params:
-  name: 'VanillaVAE'
+  name: 'InfoVAE'
   in_channels: 3
   latent_dim: 128
+  reg_weight: 110  # MMD weight
+  kernel_type: 'imq'
+  alpha: -9.0     # KLD weight
+  beta: 10.5      # Reconstruction weight
 
 exp_params:
   batch_size: 64
@@ -16,3 +20,6 @@ exp_params:
 
 trainer_params:
   max_epochs: 100
+
+
+

@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 class CustomCrafterData(Dataset):
-    def __init__(self, traj_list, path="src/representations/trajectories/", delay=False, **kwargs) -> None:
+    def __init__(self, traj_list, path="src/representations/trajectories/", delay=False):
         
         #self.path = Path(path) 
         self.path = Path("/network/scratch/r/roger.creus-castanyer/tmp/") 

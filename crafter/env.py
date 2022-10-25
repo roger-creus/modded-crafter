@@ -98,8 +98,8 @@ class Env(BaseClass):
       # set the player to the chosen positions. if it is not random, then its just the center of the map
       self._world.move(self._player, center)
 
-    #return self._obs()
-    return None
+    return self._obs()
+    #return None
 
   def step(self, action):
     self._step += 1

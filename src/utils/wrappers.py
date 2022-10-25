@@ -97,6 +97,7 @@ class WarpFramePyTorch(gym.ObservationWrapper):
 
 def make_crafter(env_id, seed = 1, scale=False, gray_scale=False, frame_stack = 1, image_size=64, capture_video = False):
     env = gym.make(env_id)
+    
     env = WarpFramePyTorch(env, gray_scale, image_size)
     
     #env = MaxAndSkipEnv(env, skip=4)
@@ -117,7 +118,7 @@ def make_crafter(env_id, seed = 1, scale=False, gray_scale=False, frame_stack = 
 
 def make_env(env_id, seed, idx, capture_video, run_name):
     def thunk():
-        env = make_crafter(env_id=env_id, seed=seed, scale=True, gray_scale=True, frame_stack = 1, image_size=64, capture_video = capture_video)
+        env = make_crafter(env_id=env_id, seed=seed, scale=True, gray_scale=False, frame_stack = 1, image_size=64, capture_video = capture_video)
         env = gym.wrappers.RecordEpisodeStatistics(env)
         env.seed(seed)
         env.action_space.seed(seed)

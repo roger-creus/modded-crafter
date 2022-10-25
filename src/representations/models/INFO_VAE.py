@@ -6,16 +6,30 @@ from IPython import embed
 import matplotlib.pyplot as plt
 
 
-class VanillaVAE_PL(pl.LightningModule):
+
+class InfoVAE_PL(pl.LightningModule):
 
     def __init__(self,
                  in_channels: int,
                  latent_dim: int,
                  hidden_dims = None,
+                 alpha: float = -0.5,
+                 beta: float = 5.0,
+                 reg_weight: int = 100,
+                 kernel_type: str = 'imq',
+                 latent_var: float = 2.,
                  **kwargs) -> None:
-        super(VanillaVAE_PL, self).__init__()
+        super(InfoVAE_PL, self).__init__()
 
         self.latent_dim = latent_dim
+        self.reg_weight = reg_weight
+        self.kernel_type = kernel_type
+        self.z_var = latent_var
+
+        assert alpha <= 0, 'alpha must be negative or zero.'
+
+        self.alpha = alpha
+        self.beta = beta
 
         modules = []
         if hidden_dims is None:
@@ -33,9 +47,8 @@ class VanillaVAE_PL(pl.LightningModule):
             in_channels = h_dim
 
         self.encoder = nn.Sequential(*modules)
-        self.fc_mu = nn.Linear(hidden_dims[-1]*4, latent_dim)
-        self.fc_var = nn.Linear(hidden_dims[-1]*4, latent_dim)
-
+        self.fc_mu = nn.Linear(hidden_dims[-1] * 4, latent_dim)
+        self.fc_var = nn.Linear(hidden_dims[-1] * 4, latent_dim)
 
         # Build Decoder
         modules = []
@@ -88,16 +101,9 @@ class VanillaVAE_PL(pl.LightningModule):
         # of the latent Gaussian distribution
         mu = self.fc_mu(result)
         log_var = self.fc_var(result)
-
         return [mu, log_var]
 
     def decode(self, z):
-        """
-        Maps the given latent codes
-        onto the image space.
-        :param z: (Tensor) [B x D]
-        :return: (Tensor) [B x C x H x W]
-        """
         result = self.decoder_input(z)
         result = result.view(-1, 512, 2, 2)
         result = self.decoder(result)
@@ -119,31 +125,109 @@ class VanillaVAE_PL(pl.LightningModule):
     def forward(self, input, **kwargs):
         mu, log_var = self.encode(input)
         z = self.reparameterize(mu, log_var)
-        return  [self.decode(z), input, mu, log_var]
+        return  [self.decode(z), input, z, mu, log_var]
 
     def loss_function(self,
                       *args,
                       **kwargs) -> dict:
-        """
-        Computes the VAE loss function.
-        KL(N(\mu, \sigma), N(0, 1)) = \log \frac{1}{\sigma} + \frac{\sigma^2 + \mu^2}{2} - \frac{1}{2}
-        :param args:
-        :param kwargs:
-        :return:
-        """
         recons = args[0]
         input = args[1]
-        mu = args[2]
-        log_var = args[3]
+        z = args[2]
+        mu = args[3]
+        log_var = args[4]
 
-        kld_weight = kwargs['M_N'] # Account for the minibatch samples from the dataset
+        batch_size = input.size(0)
+        bias_corr = batch_size *  (batch_size - 1)
+        kld_weight = kwargs['M_N']  # Account for the minibatch samples from the dataset
+
         recons_loss =F.mse_loss(recons, input)
+        mmd_loss = self.compute_mmd(z)
+        kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim=1), dim=0)
+
+        loss = self.beta * recons_loss + \
+               (1. - self.alpha) * kld_weight * kld_loss + \
+               (self.alpha + self.reg_weight - 1.)/bias_corr * mmd_loss
+        return {'loss': loss, 'Reconstruction_Loss':recons_loss, 'MMD': mmd_loss, 'KLD':-kld_loss}
+
+    def compute_kernel(self,
+                       x1,
+                       x2):
+        # Convert the tensors into row and column vectors
+        D = x1.size(1)
+        N = x1.size(0)
+
+        x1 = x1.unsqueeze(-2) # Make it into a column tensor
+        x2 = x2.unsqueeze(-3) # Make it into a row tensor
+
+        """
+        Usually the below lines are not required, especially in our case,
+        but this is useful when x1 and x2 have different sizes
+        along the 0th dimension.
+        """
+        x1 = x1.expand(N, N, D)
+        x2 = x2.expand(N, N, D)
+
+        if self.kernel_type == 'rbf':
+            result = self.compute_rbf(x1, x2)
+        elif self.kernel_type == 'imq':
+            result = self.compute_inv_mult_quad(x1, x2)
+        else:
+            raise ValueError('Undefined kernel type.')
+
+        return result
 
 
-        kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)
+    def compute_rbf(self,
+                    x1,
+                    x2,
+                    eps: float = 1e-7):
+        """
+        Computes the RBF Kernel between x1 and x2.
+        :param x1: (Tensor)
+        :param x2: (Tensor)
+        :param eps: (Float)
+        :return:
+        """
+        z_dim = x2.size(-1)
+        sigma = 2. * z_dim * self.z_var
 
-        loss = recons_loss + kld_weight * kld_loss
-        return {'loss': loss, 'Reconstruction_Loss':recons_loss.detach(), 'KLD':-kld_loss.detach()}
+        result = torch.exp(-((x1 - x2).pow(2).mean(-1) / sigma))
+        return result
+
+    def compute_inv_mult_quad(self,
+                               x1,
+                               x2,
+                               eps: float = 1e-7):
+        """
+        Computes the Inverse Multi-Quadratics Kernel between x1 and x2,
+        given by
+                k(x_1, x_2) = \sum \frac{C}{C + \|x_1 - x_2 \|^2}
+        :param x1: (Tensor)
+        :param x2: (Tensor)
+        :param eps: (Float)
+        :return:
+        """
+        z_dim = x2.size(-1)
+        C = 2 * z_dim * self.z_var
+        kernel = C / (eps + C + (x1 - x2).pow(2).sum(dim = -1))
+
+        # Exclude diagonal elements
+        result = kernel.sum() - kernel.diag().sum()
+
+        return result
+
+    def compute_mmd(self, z):
+        # Sample from prior (Gaussian) distribution
+        prior_z = torch.randn_like(z)
+
+        prior_z__kernel = self.compute_kernel(prior_z, prior_z)
+        z__kernel = self.compute_kernel(z, z)
+        priorz_z__kernel = self.compute_kernel(prior_z, z)
+
+        mmd = prior_z__kernel.mean() + \
+              z__kernel.mean() - \
+              2 * priorz_z__kernel.mean()
+        return mmd
 
     def sample(self,
                num_samples:int,
@@ -171,7 +255,7 @@ class VanillaVAE_PL(pl.LightningModule):
             
             logger.experiment.log({'VAE samples': fig})
             plt.close(fig)
-            
+
         return samples
 
     def generate(self, x, logger = None):
@@ -180,11 +264,10 @@ class VanillaVAE_PL(pl.LightningModule):
         :param x: (Tensor) [B x C x H x W]
         :return: (Tensor) [B x C x H x W]
         """
-
         recons = self.forward(x)[0]
-
+        
         num_examples = x.size(0)
-
+        
         if logger is not None:
 
             fig, axs = plt.subplots(2, num_examples, figsize=(18, 4))

@@ -18,6 +18,8 @@ from utils.wrappers import *
 from utils.utils import *
 from utils.networks import *
 
+os.environ["WANDB_API_KEY"] = "e352fb7178eccaebef862095e4789238001ffbaf"
+
 
 def parse_args():
     # fmt: off
@@ -87,6 +89,10 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
+
+    # for mila cluster
+    save_path = args.save_path + "/tmp/"
+
     run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
     if args.track:
         import wandb
@@ -114,7 +120,12 @@ if __name__ == "__main__":
     )
     assert isinstance(envs.single_action_space, gym.spaces.Discrete), "only discrete action space is supported"
 
-    agent = Agent().to(device)
+
+    pretrained_curl = False
+    pretrained_vae = True
+    fine_tune = True
+
+    agent = Agent(pretrained_curl = pretrained_curl, pretrained_vae = pretrained_vae, fine_tune = fine_tune).to(device)
     optimizer = optim.Adam(agent.parameters(), lr=args.learning_rate, eps=1e-5)
 
     # ALGO Logic: Storage setup
@@ -134,7 +145,7 @@ if __name__ == "__main__":
 
     best_eval_reward = -999
     test_env = gym.vector.SyncVectorEnv(
-        [make_env(args.env_id, np.random.randint(100), 999, args.capture_video, run_name) for i in range(1)]
+        [make_env(args.env_id, np.random.randint(10000), 999, args.capture_video, run_name) for i in range(1)]
     )
 
     for update in range(1, num_updates + 1):
@@ -283,10 +294,10 @@ if __name__ == "__main__":
             print("Eval agent at step: " + str(global_step) + ", achieved reward: " + str(eval_reward) + " and survived for: " + str(eval_steps) + " steps")
 
             if eval_reward > best_eval_reward:
-                if not os.path.exists(args.save_path):
-                    os.makedirs(args.save_path)
+                if not os.path.exists(save_path + "checkpoints/"):
+                    os.makedirs(save_path + "checkpoints/")
                 
-                torch.save(agent.state_dict(), args.save_path + f'/ppo-{global_step}.pt')
+                torch.save(agent.state_dict(), save_path + "checkpoints" + f'/ppo-{global_step}.pt')
                 best_eval_reward = eval_reward
                 print("Saved new best agent!")
 
