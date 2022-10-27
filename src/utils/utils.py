@@ -48,7 +48,7 @@ def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
     return layer
 
 
-def plot_semantic_map(semantic, player_pos):
+def plot_local_semantic_map_from_global(semantic, player_pos):
     x, y = player_pos[0], player_pos[1]
     n_rows = 7
     n_cols = 9
@@ -61,6 +61,21 @@ def plot_semantic_map(semantic, player_pos):
 
     plt.show()
     plt.savefig("./lol2.png")
+    return fig
+
+def plot_local_semantic_map(semantic):
+    n_rows = 7
+    n_cols = 9
+
+    fig, ax = plt.subplots(7,9)
+
+    for i in range(n_rows):
+        for j in range(n_cols):
+            ax[i,j].imshow(plt.imread(assets_path + map_semantic[semantic[i][j]]))
+            ax[i,j].axis('off')
+
+    plt.show()
+    plt.savefig("./lol1.png")
     return fig
 
 def store_clusters_cnn(traj, conf, enc, path_clusters):

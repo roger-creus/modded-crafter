@@ -1,10 +1,10 @@
 import crafter
 from crafter.env import Env
 from IPython import embed
-from utils.utils import plot_semantic_map
+from utils.utils import plot_local_semantic_map, plot_local_semantic_map_from_global
 import matplotlib.pyplot as plt
 
-env = Env()
+env = Env(use_semantic=True)
 env = crafter.Recorder(
   env, 'crafter_logs',
   save_stats=False,
@@ -17,6 +17,5 @@ done = False
 while not done:
   action = env.action_space.sample()
   obs, reward, done, info = env.step(action)
-  img = plot_semantic_map((info["semantic"]), info["player_pos"])
-  break
-  env.render()
+  #img = plot_local_semantic_map(obs)
+  print(obs.shape)

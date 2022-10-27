@@ -42,7 +42,7 @@ def parse_args():
         help="whether to capture videos of the agent performances (check out `videos` folder)")
 
     # Algorithm specific arguments
-    parser.add_argument("--env-id", type=str, default="BreakoutNoFrameskip-v4",
+    parser.add_argument("--env-id", type=str, default="CrafterReward-v1",
         help="the id of the environment")
     parser.add_argument("--total-timesteps", type=int, default=10000000,
         help="total timesteps of the experiments")
@@ -114,18 +114,23 @@ if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
 
+    # CONFIG 
+    pretrained_curl = False
+    pretrained_vae = False
+    fine_tune = False
+    use_semantic = True
+
     # env setup
     envs = gym.vector.SyncVectorEnv(
-        [make_env(args.env_id, args.seed + i, i, args.capture_video, run_name) for i in range(args.num_envs)]
+        [make_env(args.env_id, args.seed + i, i, args.capture_video, run_name, use_semantic = use_semantic) for i in range(args.num_envs)]
     )
     assert isinstance(envs.single_action_space, gym.spaces.Discrete), "only discrete action space is supported"
 
-
-    pretrained_curl = False
-    pretrained_vae = True
-    fine_tune = True
-
-    agent = Agent(pretrained_curl = pretrained_curl, pretrained_vae = pretrained_vae, fine_tune = fine_tune).to(device)
+    if not use_semantic:
+        agent = Agent(pretrained_curl = pretrained_curl, pretrained_vae = pretrained_vae, fine_tune = fine_tune).to(device)
+    else:
+        agent = Agent_MLP().to(device)
+    
     optimizer = optim.Adam(agent.parameters(), lr=args.learning_rate, eps=1e-5)
 
     # ALGO Logic: Storage setup
@@ -145,7 +150,7 @@ if __name__ == "__main__":
 
     best_eval_reward = -999
     test_env = gym.vector.SyncVectorEnv(
-        [make_env(args.env_id, np.random.randint(10000), 999, args.capture_video, run_name) for i in range(1)]
+        [make_env(args.env_id, np.random.randint(10000), 999, args.capture_video, run_name, use_semantic=use_semantic) for i in range(1)]
     )
 
     for update in range(1, num_updates + 1):
