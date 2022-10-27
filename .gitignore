@@ -17,3 +17,6 @@ src/wandb/*
 
 /*.ckpt
 *.ckpt
+
+src/crafter_logs/*
+/src/crafter_logs/*
