@@ -12,16 +12,56 @@ from pathlib import Path
 from sklearn.cluster import KMeans
 import pandas as pd
 from crafter.env import Env
+import matplotlib.image as mpimg
 
 import warnings
 warnings.filterwarnings('ignore', '.*future.*', )
 
 from src.representations.main.custom_loader import CustomCrafterData
 
+assets_path = "/home/roger/Desktop/modded-crafter/crafter/assets/"
+map_semantic = {
+    0 : "unkonwn.png",
+    1 : "water.png",
+    2 : "grass.png",
+    3 : "stone.png",
+    4 : "path.png",
+    5 : "sand.png",
+    6 : "tree.png",
+    7 : "lava.png",
+    8 : "coal.png",
+    9 : "iron.png",
+    10 : "diamond.png",
+    11 : "table.png",
+    12 : "furnace.png",
+    13 : "player-down.png",
+    14 : "cow.png",
+    15 : "zombie.png",
+    16 : "skeleton.png",
+    17 : "arrow-right.png",
+    18 : "plant.png"
+}
+
 def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
     torch.nn.init.orthogonal_(layer.weight, std)
     torch.nn.init.constant_(layer.bias, bias_const)
     return layer
+
+
+def plot_semantic_map(semantic, player_pos):
+    x, y = player_pos[0], player_pos[1]
+    n_rows = 7
+    n_cols = 9
+    fig, ax = plt.subplots(7,9)
+
+    for i in range(n_rows):
+        for j in range(n_cols):
+            ax[i,j].imshow(plt.imread(assets_path + map_semantic[semantic[(x - 3) + i][(y - 4) +  j]]))
+            ax[i,j].axis('off')
+
+    plt.show()
+    plt.savefig("./lol2.png")
+    return fig
 
 def store_clusters_cnn(traj, conf, enc, path_clusters):
     num_clusters = 3
