@@ -42,22 +42,53 @@ map_semantic = {
     18 : "plant.png"
 }
 
+map_inventory = {
+    0: "unknown.png",
+    1 : "1.png",
+    2 : "2.png",
+    3 : "3.png",
+    4 : "4.png",
+    5 : "5.png",
+    6 : "6.png",
+    7 : "7.png",
+    8 : "8.png",
+    9 : "9.png"
+}
+
 def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
     torch.nn.init.orthogonal_(layer.weight, std)
     torch.nn.init.constant_(layer.bias, bias_const)
     return layer
 
 
-def plot_local_semantic_map_from_global(semantic, player_pos):
+def plot_local_semantic_map_from_global(semantic, player_pos, inventory):
     x, y = player_pos[0], player_pos[1]
     n_rows = 7
     n_cols = 9
-    fig, ax = plt.subplots(7,9)
+    fig, ax = plt.subplots(9,9)
 
     for i in range(n_rows):
         for j in range(n_cols):
             ax[i,j].imshow(plt.imread(assets_path + map_semantic[semantic[(x - 3) + i][(y - 4) +  j]]))
             ax[i,j].axis('off')
+
+    for i in range(n_cols):
+        key = list(inventory.keys())[i]
+        inv = inventory[key]
+        
+        ax[7, i].imshow(plt.imread(assets_path + map_inventory[inv]))
+        ax[7, i].axis('off')
+
+    for i in range(n_cols):
+        if i + n_cols < len(inventory.keys()):
+            key = list(inventory.keys())[i + n_cols]
+            inv = inventory[key]
+            ax[8, i].imshow(plt.imread(assets_path + map_inventory[inv]))
+            ax[8, i].axis('off')
+
+
+    ax[8, 7].axis('off')
+    ax[8, 8].axis('off')
 
     plt.show()
     plt.savefig("./lol2.png")
@@ -67,13 +98,32 @@ def plot_local_semantic_map(semantic):
     n_rows = 7
     n_cols = 9
 
-    fig, ax = plt.subplots(7,9)
+    fig, ax = plt.subplots(9,9)
 
     for i in range(n_rows):
         for j in range(n_cols):
             ax[i,j].imshow(plt.imread(assets_path + map_semantic[semantic[i][j]]))
             ax[i,j].axis('off')
 
+    for i in range(n_cols):
+        key = list(inventory.keys())[i]
+        inv = inventory[key]
+        
+        ax[7, i].imshow(plt.imread(assets_path + map_inventory[inv]))
+        ax[7, i].axis('off')
+
+    for i in range(n_cols):
+        if i + n_cols < len(inventory.keys()):
+            key = list(inventory.keys())[i + n_cols]
+            inv = inventory[key]
+            ax[8, i].imshow(plt.imread(assets_path + map_inventory[inv]))
+            ax[8, i].axis('off')
+
+
+    ax[8, 7].axis('off')
+    ax[8, 8].axis('off')
+    
+    
     plt.show()
     plt.savefig("./lol1.png")
     return fig

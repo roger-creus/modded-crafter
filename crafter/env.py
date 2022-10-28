@@ -8,6 +8,83 @@ from . import objects
 from . import worldgen
 
 from IPython import embed
+import torch
+import torch.nn.functional as F
+import matplotlib.pyplot as plt
+
+assets_path = "/home/roger/Desktop/modded-crafter/crafter/assets/"
+
+map_semantic = {
+    0 : "unkonwn.png",
+    1 : "water.png",
+    2 : "grass.png",
+    3 : "stone.png",
+    4 : "path.png",
+    5 : "sand.png",
+    6 : "tree.png",
+    7 : "lava.png",
+    8 : "coal.png",
+    9 : "iron.png",
+    10 : "diamond.png",
+    11 : "table.png",
+    12 : "furnace.png",
+    13 : "player-down.png",
+    14 : "cow.png",
+    15 : "zombie.png",
+    16 : "skeleton.png",
+    17 : "arrow-right.png",
+    18 : "plant.png"
+}
+
+map_inventory = {
+    0: "unknown.png",
+    1 : "1.png",
+    2 : "2.png",
+    3 : "3.png",
+    4 : "4.png",
+    5 : "5.png",
+    6 : "6.png",
+    7 : "7.png",
+    8 : "8.png",
+    9 : "9.png"
+}
+
+def plot_local_semantic_map(semantic, inventory):
+    n_rows = 7
+    n_cols = 9
+
+    fig, ax = plt.subplots(9,9)
+
+    for i in range(n_rows):
+        for j in range(n_cols):
+            ax[i,j].imshow(plt.imread(assets_path + map_semantic[semantic[i][j]]))
+            ax[i,j].axis('off')
+
+    for i in range(n_cols):
+        key = list(inventory.keys())[i]
+        inv = inventory[key]
+        
+        ax[7, i].imshow(plt.imread(assets_path + map_inventory[inv]))
+        ax[7, i].axis('off')
+
+    for i in range(n_cols):
+        if i + n_cols < len(inventory.keys()):
+            key = list(inventory.keys())[i + n_cols]
+            inv = inventory[key]
+            ax[8, i].imshow(plt.imread(assets_path + map_inventory[inv]))
+            ax[8, i].axis('off')
+
+
+    ax[8, 7].axis('off')
+    ax[8, 8].axis('off')
+    
+    
+    plt.show()
+    plt.savefig("./lol1.png")
+    return fig
+
+
+
 
 
 # Gym is an optional dependency.
@@ -28,7 +105,7 @@ class Env(BaseClass):
 
   def __init__(
       self, area=(64, 64), view=(9, 9), size=(64, 64),
-      reward=True, length=10000, seed=None):
+      reward=True, length=10000, seed=None, use_semantic = False):
     view = np.array(view if hasattr(view, '__len__') else (view, view))
     size = np.array(size if hasattr(size, '__len__') else (size, size))
     seed = np.random.randint(0, 2**31 - 1) if seed is None else seed
@@ -59,9 +136,15 @@ class Env(BaseClass):
     self.reward_range = None
     self.metadata = None
 
+    self.use_semantic = use_semantic
+
   @property
   def observation_space(self):
-    return BoxSpace(0, 255, tuple(self._size) + (3,), np.uint8)
+    if not self.use_semantic:
+      return BoxSpace(0, 255, tuple(self._size) + (3,), np.uint8)
+    else:
+      # 7*9=63 for the image + 16 for the inventory
+      return BoxSpace(0, 1, (1,35,7,9), np.float64)
 
   @property
   def action_space(self):
@@ -98,7 +181,11 @@ class Env(BaseClass):
       # set the player to the chosen positions. if it is not random, then its just the center of the map
       self._world.move(self._player, center)
 
-    return self._obs()
+    if not self.use_semantic:
+      return self._obs()
+    else:
+      return self._semantic_view()
+    
     #return None
 
   def step(self, action):
@@ -114,7 +201,13 @@ class Env(BaseClass):
         # center = (xmax - xmin) // 2, (ymax - ymin) // 2
         # if self._player.distance(center) < 4 * max(self._view):
         self._balance_chunk(chunk, objs)
-    obs = self._obs()
+    
+    
+    if not self.use_semantic:
+      obs = self._obs()
+    else:
+      obs = self._semantic_view()
+    
     reward = (self._player.health - self._last_health) / 10
     self._last_health = self._player.health
     unlocked = {
@@ -149,6 +242,42 @@ class Env(BaseClass):
     (x, y), (w, h) = border, view.shape[:2]
     canvas[x: x + w, y: y + h] = view
     return canvas.transpose((1, 0, 2))
+
+
+  def _semantic_view(self):
+    x, y = self._player.pos[0], self._player.pos[1]
+
+    sem_view = self._sem_view()
+    sem_view_pad = np.pad(sem_view, [20, 20], mode = "constant", constant_values=0)
+    sem_view = sem_view_pad[(x - 3) + 20 : (x - 3) + 7 + 20, (y - 4) + 20 : (y - 4) + 9 + 20]
+
+    #sem_view_flatten = sem_view.flatten() / 18.
+
+    one_hot = F.one_hot(torch.tensor(sem_view.astype(int))).permute(2,0,1)
+
+    if one_hot.size(0) != 19:
+      one_hot = torch.vstack([one_hot, torch.tensor(np.zeros((19 - one_hot.size(0), 7, 9 )))])
+    
+    inventory = self._player.inventory.copy()
+    
+    #plot_local_semantic_map(sem_view, inventory)
+    
+    inventory = np.fromiter(inventory.values(), dtype=int)
+
+    inventory_tiles = []
+    for val in inventory:
+      tile = np.tile(val / 9, (1,7,9))
+      inventory_tiles.append(tile)
+
+    inventory_tiles = np.concatenate(inventory_tiles)
+    inventory_tiles = torch.tensor(inventory_tiles)
+
+    obs = torch.vstack([one_hot, inventory_tiles])
+    
+    #obs = np.concatenate([sem_view_flatten, inventory])
+    obs = np.expand_dims(obs, axis=0)
+
+    return obs
 
   def _obs(self):
     return self.render()

@@ -20,3 +20,7 @@ src/wandb/*
 
 src/crafter_logs/*
 /src/crafter_logs/*
+
+
+src/checkpoints/*
+/src/checkpoints/*

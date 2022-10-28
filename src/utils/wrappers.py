@@ -133,6 +133,10 @@ def make_env(env_id, seed, idx, capture_video, run_name, use_semantic = False):
             return env
         else:
             env = make_semantic_crafter()
+            env = gym.wrappers.RecordEpisodeStatistics(env)
+            env.seed(seed)
+            env.action_space.seed(seed)
+            env.observation_space.seed(seed)
             return env
             
     return thunk

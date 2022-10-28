@@ -143,29 +143,47 @@ class Agent(nn.Module):
 
 
 class Agent_MLP(nn.Module):
-    def __init__(self):
+    def __init__(self, hidden_channels = 32):
         super().__init__()
+
+        self.relu = nn.ReLU()
+        self.conv1 = layer_init(nn.Conv2d(35, hidden_channels, 3, stride=1))
+        self.conv2 = layer_init(nn.Conv2d(hidden_channels, hidden_channels * 2, 3, stride=1))
+        self.conv3 = layer_init(nn.Conv2d(hidden_channels * 2, hidden_channels * 2, 3, stride=1))
+        self.fc = layer_init(nn.Linear(hidden_channels * 2 * 1 * 3, 128))
+
         self.critic = nn.Sequential(
-            layer_init(nn.Linear(79, 128)),
-            nn.Tanh(),
             layer_init(nn.Linear(128, 128)),
             nn.Tanh(),
-            layer_init(nn.Linear(128, 1), std=1.0),
+            layer_init(nn.Linear(128, 64)),
+            nn.Tanh(),
+            layer_init(nn.Linear(64, 1), std=1.0),
         )
         self.actor = nn.Sequential(
-            layer_init(nn.Linear(79 , 128)),
+            layer_init(nn.Linear(128 , 128)),
             nn.Tanh(),
-            layer_init(nn.Linear(128, 128)),
+            layer_init(nn.Linear(128, 64)),
             nn.Tanh(),
-            layer_init(nn.Linear(128, 17), std=0.01)
+            layer_init(nn.Linear(64, 17), std=0.01)
         )
 
+    def encode(self, x):
+        x = self.relu(self.conv1(x))
+        x = self.relu(self.conv2(x))
+        x = self.relu(self.conv3(x))
+        x = torch.flatten(x, start_dim = 1)
+        x = self.fc(x)
+        return self.relu(x)
+
     def get_value(self, x):
+        x = x.squeeze(1)
+        x = self.encode(x)
         return self.critic(x)
 
     def get_action_and_value(self, x, action=None):
-        logits = x.squeeze(1)
-        logits = self.actor(logits)
+        x = x.squeeze(1)
+        x = self.encode(x)
+        logits = self.actor(x)
         probs = Categorical(logits=logits)
         if action is None:
             action = probs.sample()

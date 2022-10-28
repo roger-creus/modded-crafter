@@ -16,6 +16,5 @@ obs = env.reset()
 done = False
 while not done:
   action = env.action_space.sample()
-  obs, reward, done, info = env.step(action)
-  #img = plot_local_semantic_map(obs)
-  print(obs.shape)
+  obs, reward,  done, info = env.step(action)
+  #img = plot_local_semantic_map_from_global(info["semantic"], info["player_pos"], info["inventory"])
