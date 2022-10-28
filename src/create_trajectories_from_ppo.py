@@ -41,9 +41,11 @@ envs_num = args.envs_num
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 agent = Agent().to(device)
-agent.load_state_dict(torch.load("/home/mila/r/roger.creus-castanyer/modded-crafter/src/checkpoints/ppo-14254080.pt"))
+#agent.load_state_dict(torch.load("/home/mila/r/roger.creus-castanyer/modded-crafter/src/checkpoints/ppo-14254080.pt"))
+agent.load_state_dict(torch.load("/home/roger/Desktop/modded-crafter/src/checkpoints/ppo-14254080.pt"))
 
 os.makedirs(args.save_path + "/tmp/" + "observations/")
+os.makedirs(args.save_path + "/tmp/" + "semantics/")
 os.makedirs(args.save_path + "/tmp/" + "positions/")
 
 
@@ -54,10 +56,14 @@ for env_ in range(envs_num):
     envs_path = "env_" + str(args.seed + env_) + "/"
 
     envs_obs_path = args.save_path +  "/tmp/" + "observations/" + envs_path
+    envs_semantics_path = args.save_path +  "/tmp/" + "semantics/" + envs_path
     envs_pos_path = args.save_path +  "/tmp/" + "positions/" + envs_path
     
     if not os.path.exists(envs_obs_path):
         os.makedirs(envs_obs_path)
+    
+    if not os.path.exists(envs_semantics_path):
+        os.makedirs(envs_semantics_path)
     
     if not os.path.exists(envs_pos_path):
         os.makedirs(envs_pos_path)
@@ -68,9 +74,10 @@ for env_ in range(envs_num):
         steps = 0
         done = False
         obs = env.reset("random")
-        obs, reward, done, info = env.step(15)
+        #obs, reward, done, info = env.step(15)
         
         trajectory = []
+        trajectory_semantics = []
         trajectory_positions = []
 
         while steps < traj_len and not done:
@@ -89,19 +96,30 @@ for env_ in range(envs_num):
             
             player_pos = np.array(info["player_pos"])
 
+            # shape is (W,H,C) = (64,64,3)
             trajectory.append(obs)
+            
+            # resizing the semantics to (W,H,C)
+            semantic = env._semantic_view().squeeze(0).transpose(1,2,0)
+            trajectory_semantics.append(semantic)
+
             trajectory_positions.append(player_pos)
 
             obs = next_obs
 
         trajectory = np.array(trajectory)
+        trajectory_semantics = np.array(trajectory_semantics)
         trajectory_positions = np.array(trajectory_positions)
         
         trajectory_observations_path = envs_obs_path + "trajectory_observations_"  + str(i) + ".npy"
+        trajectory_semantics_path = envs_semantics_path + "trajectory_semantics_"  + str(i) + ".npy"
         trajectory_positions_path = envs_pos_path +  "trajectory_positions_" + str(i) + ".npy"
 
         with open(trajectory_observations_path, 'wb') as tf:
             np.save(tf, trajectory)
+
+        with open(trajectory_semantics_path, 'wb') as ts:
+            np.save(ts, trajectory_semantics)
         
         with open(trajectory_positions_path, 'wb') as to:
             np.save(to, trajectory_positions)

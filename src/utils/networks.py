@@ -71,14 +71,14 @@ class Agent(nn.Module):
                 layer_init(nn.Conv2d(hidden_channels * 2, hidden_channels * 2, 3, stride=1)),
                 nn.ReLU(),
                 nn.Flatten(),
-                layer_init(nn.Linear(hidden_channels * 2 * 5 * 5, z_dim)),
+                layer_init(nn.Linear(hidden_channels * 2 * 5 * 5, 512)),
                 nn.ReLU(),
             )
 
             self.encoder_used = "vanilla"
 
-        self.actor = layer_init(nn.Linear(256, num_actions), std=0.01)
-        self.critic = layer_init(nn.Linear(256, 1), std=1)
+        self.actor = layer_init(nn.Linear(512, num_actions), std=0.01)
+        self.critic = layer_init(nn.Linear(512, 1), std=1)
 
         if conf is not None:
             self.trajectories = conf["cnn"]["trajectories"]
