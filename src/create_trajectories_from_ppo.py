@@ -41,8 +41,8 @@ envs_num = args.envs_num
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 agent = Agent().to(device)
-#agent.load_state_dict(torch.load("/home/mila/r/roger.creus-castanyer/modded-crafter/src/checkpoints/ppo-14254080.pt"))
-agent.load_state_dict(torch.load("/home/roger/Desktop/modded-crafter/src/checkpoints/ppo-14254080.pt"))
+agent.load_state_dict(torch.load("/home/mila/r/roger.creus-castanyer/modded-crafter/src/checkpoints/ppo-14254080.pt"))
+#agent.load_state_dict(torch.load("/home/roger/Desktop/modded-crafter/src/checkpoints/ppo-14254080.pt"))
 
 os.makedirs(args.save_path + "/tmp/" + "observations/")
 os.makedirs(args.save_path + "/tmp/" + "semantics/")
@@ -100,7 +100,8 @@ for env_ in range(envs_num):
             trajectory.append(obs)
             
             # resizing the semantics to (W,H,C)
-            semantic = env._semantic_view().squeeze(0).transpose(1,2,0)
+            semantic = env._semantic_view(one_hot_encoding=False).transpose(1,2,0)
+
             trajectory_semantics.append(semantic)
 
             trajectory_positions.append(player_pos)

@@ -12,14 +12,14 @@ exp_params:
   lr: 0.005
   weight_decay: 0.0
   scheduler_gamma: 0.95
-  kld_weight: 0.00025
+  kld_weight: 0.0000025
   manual_seed: 1265
   split : 0.9
-  #trajectories: ['observations/env_2022','observations/env_2023','observations/env_2024','observations/env_2025','observations/env_2026','observations/env_2027','observations/env_2028','observations/env_2029','observations/env_2030','observations/env_2031']
-  trajectories: ['observations/env_2022', 'observations/env_2023', 'observations/env_2024']
+  trajectories: ['observations/env_2022','observations/env_2023','observations/env_2024','observations/env_2025','observations/env_2026','observations/env_2027','observations/env_2028','observations/env_2029','observations/env_2030','observations/env_2031']
+  #trajectories: ['observations/env_2022', 'observations/env_2023', 'observations/env_2024']
 
 trainer_params:
-  max_epochs: 100
+  max_epochs: 30
 
 
 

@@ -12,7 +12,8 @@ import torch
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 
-assets_path = "/home/roger/Desktop/modded-crafter/crafter/assets/"
+#assets_path = "/home/roger/Desktop/modded-crafter/crafter/assets/"
+assets_path = "/home/mila/r/roger.creus-castanyer/modded-crafter/crafter/assets/"
 
 map_semantic = {
     0 : "unkonwn.png",
@@ -37,6 +38,7 @@ map_semantic = {
 }
 
 map_inventory = {
+    -1 : "unknown.png",
     0: "unknown.png",
     1 : "1.png",
     2 : "2.png",
@@ -49,42 +51,27 @@ map_inventory = {
     9 : "9.png"
 }
 
-def plot_local_semantic_map(semantic, inventory):
-    n_rows = 7
+# the mask object is the flattened local semantic + inventory
+def plot_local_mask(mask):
+    
+    n_rows = 9
     n_cols = 9
 
     fig, ax = plt.subplots(9,9)
 
     for i in range(n_rows):
         for j in range(n_cols):
-            ax[i,j].imshow(plt.imread(assets_path + map_semantic[semantic[i][j]]))
+          if i < 7:
+            ax[i,j].imshow(plt.imread(assets_path + map_semantic[mask[i][j]]))
+            ax[i,j].axis('off')
+          else:
+            ax[i,j].imshow(plt.imread(assets_path + map_inventory[mask[i][j]]))
             ax[i,j].axis('off')
 
-    for i in range(n_cols):
-        key = list(inventory.keys())[i]
-        inv = inventory[key]
-        
-        ax[7, i].imshow(plt.imread(assets_path + map_inventory[inv]))
-        ax[7, i].axis('off')
-
-    for i in range(n_cols):
-        if i + n_cols < len(inventory.keys()):
-            key = list(inventory.keys())[i + n_cols]
-            inv = inventory[key]
-            ax[8, i].imshow(plt.imread(assets_path + map_inventory[inv]))
-            ax[8, i].axis('off')
-
-
-    ax[8, 7].axis('off')
-    ax[8, 8].axis('off')
-    
-    
     plt.show()
     plt.savefig("./lol1.png")
+    plt.close()
     return fig
-
-
-
 
 
 # Gym is an optional dependency.
@@ -244,38 +231,46 @@ class Env(BaseClass):
     return canvas.transpose((1, 0, 2))
 
 
-  def _semantic_view(self):
+  def _semantic_view(self, one_hot_encoding=True):
     x, y = self._player.pos[0], self._player.pos[1]
 
     sem_view = self._sem_view()
     sem_view_pad = np.pad(sem_view, [20, 20], mode = "constant", constant_values=0)
     sem_view = sem_view_pad[(x - 3) + 20 : (x - 3) + 7 + 20, (y - 4) + 20 : (y - 4) + 9 + 20]
 
-    #sem_view_flatten = sem_view.flatten() / 18.
+    if one_hot_encoding:
 
-    one_hot = F.one_hot(torch.tensor(sem_view.astype(int))).permute(2,0,1)
+      one_hot = F.one_hot(torch.tensor(sem_view.astype(int))).permute(2,0,1)
 
-    if one_hot.size(0) != 19:
-      one_hot = torch.vstack([one_hot, torch.tensor(np.zeros((19 - one_hot.size(0), 7, 9 )))])
-    
-    inventory = self._player.inventory.copy()
-    
-    #plot_local_semantic_map(sem_view, inventory)
-    
-    inventory = np.fromiter(inventory.values(), dtype=int)
+      if one_hot.size(0) != 19:
+        one_hot = torch.vstack([one_hot, torch.tensor(np.zeros((19 - one_hot.size(0), 7, 9 )))])
+      
+      inventory = self._player.inventory.copy()
+      inventory = np.fromiter(inventory.values(), dtype=int)
 
-    inventory_tiles = []
-    for val in inventory:
-      tile = np.tile(val / 9, (1,7,9))
-      inventory_tiles.append(tile)
+      inventory_tiles = []
+      for val in inventory:
+        tile = np.tile(val / 9, (1,7,9))
+        inventory_tiles.append(tile)
 
-    inventory_tiles = np.concatenate(inventory_tiles)
-    inventory_tiles = torch.tensor(inventory_tiles)
+      inventory_tiles = np.concatenate(inventory_tiles)
+      inventory_tiles = torch.tensor(inventory_tiles)
 
-    obs = torch.vstack([one_hot, inventory_tiles])
-    
-    #obs = np.concatenate([sem_view_flatten, inventory])
-    obs = np.expand_dims(obs, axis=0)
+      obs = torch.vstack([one_hot, inventory_tiles])
+      obs = np.expand_dims(obs, axis=0)
+
+    else:
+      sem_view_flatten = sem_view.flatten()
+
+      inventory = self._player.inventory.copy()
+      inventory = np.fromiter(inventory.values(), dtype=int)
+
+      obs = np.concatenate([sem_view_flatten, inventory])
+      obs = np.pad(obs,[0,2], mode="constant", constant_values=-1).reshape(9,9)
+
+      #plot_local_mask(obs)
+
+      obs = np.expand_dims(obs, axis=0)
 
     return obs
 

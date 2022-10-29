@@ -12,9 +12,8 @@ from pathlib import Path
 
 
 class CustomCrafterData(Dataset):
-    def __init__(self, traj_list, path="src/representations/trajectories/", delay=False):
+    def __init__(self, traj_list, delay=False):
         
-        #self.path = Path(path) 
         self.path = Path("/network/scratch/r/roger.creus-castanyer/tmp/") 
         self.traj_list = traj_list
         self.dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
@@ -53,6 +52,60 @@ class CustomCrafterData(Dataset):
         return x
 
 
+class CustomCrafterData_SEMANTIC(Dataset):
+    def __init__(self, traj_list, delay=False, **kwargs) -> None:
+        
+        self.path = Path("/network/scratch/r/roger.creus-castanyer/tmp/") 
+        self.traj_list = traj_list
+        self.dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
+        self.customLoad()
+
+    def getImage(self, idx):
+        x = torch.FloatTensor(self.data[idx])
+        y = torch.FloatTensor(self.semantics[idx])
+
+        y = torch.rot90(y.reshape(9,9))
+        y = torch.flip(y, dims=(0,))
+        y = y.flatten()
+
+        return x, y
+
+
+    def customLoad(self):
+        print("Loading data...")
+        data, semantics = [], []
+
+        for i, traj in enumerate(self.traj_list):
+            env_name = traj.split("/")[1]
+            traj_num = traj.split("/")[2].split("_")[2].split(".")[0]
+
+            print(f"\tTraj: {i}", end ='\r')
+            obs = np.load(str(self.path) + "/" + traj, allow_pickle=True)
+            semantic = np.load(str(self.path) + "/semantics/" + str(env_name) + "/trajectory_semantics_" + str(traj_num) + ".npy", allow_pickle=True)
+
+            data.append(obs)
+            semantics.append(semantic)
+
+        data = np.concatenate(np.array(data, dtype='object')).reshape(-1, 64, 64, 3)
+        semantics = np.concatenate(np.array(semantics, dtype='object')).reshape(-1, 81)
+        
+        self.data = data
+        self.semantics = semantics
+
+        print("Loaded data of shape: " + str(data.shape))
+        print("Loaded semantics of shape: " + str(semantics.shape))
+
+    def __len__(self) -> int:
+        return len(self.data)
+
+    def __getitem__(self, index):
+        # Get query obs
+        x, y = self.getImage(index)
+
+        # for RGB images only
+        x = torch.div(x.unsqueeze(0).permute(0,3,1,2), 255)
+        y = torch.div(y.unsqueeze(0), 18)
+        return x,y
 
 
 class CustomCrafterData_CURL(Dataset):

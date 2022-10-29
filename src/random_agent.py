@@ -8,7 +8,7 @@ env = Env(use_semantic=True)
 env = crafter.Recorder(
   env, 'crafter_logs',
   save_stats=False,
-  save_video=True,
+  save_video=False,
   save_episode=False,
 )
 

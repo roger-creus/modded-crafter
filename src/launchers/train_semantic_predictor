@@ -13,7 +13,7 @@ module load anaconda/3
 
 conda activate /home/mila/r/roger.creus-castanyer/anaconda3/envs/crafter
 
-python3 -u -m src.representations.main.generic_vae_train -c beta_vae.yml
+python3 -u -m src.representations.main.generic_vae_train -c semantic_predictor.yml
 
 # 5. Copy whatever you want to save on $SCRATCH
 cp -r $SLURM_TMPDIR/tmp/checkpoints/ /network/scratch/r/roger.creus-castanyer/

@@ -114,3 +114,80 @@ def index_map(trajectories_positions, embeddings, enc):
     plt.scatter(values['x'], values['y'], c=values['k'].map(colors))
     plt.imshow(world_img.transpose(1,0,2))
     plt.savefig("/home/mila/r/roger.creus-castanyer/modded-crafter/imgs/index_map_" + enc.trajectories[0].split("/")[1] + ".png")
+
+
+assets_path = "/home/mila/r/roger.creus-castanyer/modded-crafter/crafter/assets/"
+map_semantic = {
+    0 : "unknown.png",
+    1 : "water.png",
+    2 : "grass.png",
+    3 : "stone.png",
+    4 : "path.png",
+    5 : "sand.png",
+    6 : "tree.png",
+    7 : "lava.png",
+    8 : "coal.png",
+    9 : "iron.png",
+    10 : "diamond.png",
+    11 : "table.png",
+    12 : "furnace.png",
+    13 : "player-down.png",
+    14 : "cow.png",
+    15 : "zombie.png",
+    16 : "skeleton.png",
+    17 : "arrow-right.png",
+    18 : "plant.png"
+}
+
+map_inventory = {
+    -1 : "unknown.png",
+    0: "unknown.png",
+    1 : "1.png",
+    2 : "2.png",
+    3 : "3.png",
+    4 : "4.png",
+    5 : "5.png",
+    6 : "6.png",
+    7 : "7.png",
+    8 : "8.png",
+    9 : "9.png"
+}
+
+# the mask object is the flattened local semantic + inventory
+def plot_local_mask(mask, mode):
+
+    # mask originally is (1,81)
+    mask = mask.reshape(9,9)
+
+    # upscale mask since it was normalized to 0-1 using (/18)
+    mask = (mask * 18)
+
+    # rounding for predicted masks
+    mask = np.round_(mask).astype(int)
+
+    print(mode)
+    print(mask)
+
+    n_rows = 9
+    n_cols = 9
+
+    fig, ax = plt.subplots(9,9)
+
+    for i in range(n_rows):
+        for j in range(n_cols):
+          element = mask[i][j]
+          if i < 7:
+            if element < 0 or element >  18:
+                element = 0
+
+            ax[i,j].imshow(plt.imread(assets_path + map_semantic[element]))
+            ax[i,j].axis('off')
+          else:
+            if element < -1 or element > 9:
+                element = -1
+
+            ax[i,j].imshow(plt.imread(assets_path + map_inventory[element]))
+            ax[i,j].axis('off')
+
+    plt.close()
+    return fig
