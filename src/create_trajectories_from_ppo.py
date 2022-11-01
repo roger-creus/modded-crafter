@@ -6,6 +6,8 @@ import os
 import random
 
 from utils.wrappers import *
+from utils.utils import plot_local_mask
+
 from crafter.env import Env
 
 import matplotlib.pyplot as plt
@@ -41,8 +43,8 @@ envs_num = args.envs_num
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 agent = Agent().to(device)
-agent.load_state_dict(torch.load("/home/mila/r/roger.creus-castanyer/modded-crafter/src/checkpoints/ppo-14254080.pt"))
-#agent.load_state_dict(torch.load("/home/roger/Desktop/modded-crafter/src/checkpoints/ppo-14254080.pt"))
+#agent.load_state_dict(torch.load("/home/mila/r/roger.creus-castanyer/modded-crafter/src/checkpoints/ppo-14254080.pt"))
+agent.load_state_dict(torch.load("/home/roger/Desktop/modded-crafter/src/checkpoints/ppo-14254080.pt"))
 
 os.makedirs(args.save_path + "/tmp/" + "observations/")
 os.makedirs(args.save_path + "/tmp/" + "semantics/")
@@ -98,9 +100,16 @@ for env_ in range(envs_num):
 
             # shape is (W,H,C) = (64,64,3)
             trajectory.append(obs)
+            plt.imsave("obs.png", obs)
+
+            x,y = info["player_pos"]
             
-            # resizing the semantics to (W,H,C)
-            semantic = env._semantic_view(one_hot_encoding=False).transpose(1,2,0)
+            #semantic = env._semantic_view(one_hot_encoding=False).transpose(1,2,0)
+
+            semantic = info["semantic"][(x-3):(x-3) + 7, (y - 4):(y-4) + 9]
+            embed()
+
+            plot_local_mask_without_inventory(semantic)
 
             trajectory_semantics.append(semantic)
 

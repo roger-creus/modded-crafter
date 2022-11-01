@@ -12,6 +12,7 @@ class Object:
     self.random = world.random
     self.inventory = {'health': 0}
     self.removed = False
+    self.name = 'unknown'
 
   @property
   def texture(self):
@@ -80,6 +81,7 @@ class Player(Object):
     self._thirst = 0
     self._fatigue = 0
     self._recover = 0
+    self.name = "player"
 
   @property
   def texture(self):
@@ -91,6 +93,7 @@ class Player(Object):
         (0, -1): 'player-up',
         (0, +1): 'player-down',
     }[tuple(self.facing)]
+
 
   @property
   def walkable(self):
@@ -266,6 +269,7 @@ class Cow(Object):
   def __init__(self, world, pos):
     super().__init__(world, pos)
     self.health = 3
+    self.name = "cow"
 
   @property
   def texture(self):
@@ -286,11 +290,12 @@ class Zombie(Object):
     self.player = player
     self.health = 5
     self.cooldown = 0
+    self.name = "zombie"
 
   @property
   def texture(self):
     return 'zombie'
-
+  
   def update(self):
     if self.health <= 0:
       self.world.remove(self)
@@ -319,6 +324,7 @@ class Skeleton(Object):
     self.player = player
     self.health = 3
     self.reload = 0
+    self.name = "skeleton"
 
   @property
   def texture(self):
@@ -356,6 +362,7 @@ class Arrow(Object):
   def __init__(self, world, pos, facing):
     super().__init__(world, pos)
     self.facing = facing
+    self.name = "arrow"
 
   @property
   def texture(self):
@@ -390,6 +397,7 @@ class Plant(Object):
     super().__init__(world, pos)
     self.health = 1
     self.grown = 0
+    self.name = 'plant'
 
   @property
   def texture(self):

@@ -12,11 +12,11 @@ import torch
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 
-#assets_path = "/home/roger/Desktop/modded-crafter/crafter/assets/"
-assets_path = "/home/mila/r/roger.creus-castanyer/modded-crafter/crafter/assets/"
+assets_path = "/home/roger/Desktop/modded-crafter/crafter/assets/"
+#assets_path = "/home/mila/r/roger.creus-castanyer/modded-crafter/crafter/assets/"
 
 map_semantic = {
-    0 : "unkonwn.png",
+    0 : "unknown.png",
     1 : "water.png",
     2 : "grass.png",
     3 : "stone.png",
@@ -61,15 +61,36 @@ def plot_local_mask(mask):
 
     for i in range(n_rows):
         for j in range(n_cols):
-          if i < 7:
-            ax[i,j].imshow(plt.imread(assets_path + map_semantic[mask[i][j]]))
-            ax[i,j].axis('off')
+          if j < 7:
+            ax[j,i].imshow(plt.imread(assets_path + map_semantic[mask[j][i]]))
+            ax[j,i].axis('off')
           else:
-            ax[i,j].imshow(plt.imread(assets_path + map_inventory[mask[i][j]]))
-            ax[i,j].axis('off')
+            ax[j,i].imshow(plt.imread(assets_path + map_inventory[mask[j][i]]))
+            ax[j,i].axis('off')
 
     plt.show()
     plt.savefig("./lol1.png")
+    plt.close()
+    return fig
+
+def plot_local_mask_without_inventory(mask):
+    n_rows = 7
+    n_cols = 9
+
+    fig, ax = plt.subplots(9,9)
+
+    for i in range(n_rows):
+        for j in range(n_cols):
+            element = mask[i][j]
+            if element < 0 or element >  18:
+                element = 0
+
+            ax[i,j].imshow(plt.imread(assets_path + map_semantic[element]))
+            ax[i,j].axis('off')
+
+
+    plt.savefig("semantic.png")
+
     plt.close()
     return fig
 
@@ -122,6 +143,10 @@ class Env(BaseClass):
     # Some libraries expect these attributes to be set.
     self.reward_range = None
     self.metadata = None
+
+    obj_types = ["player", "cow", "zombie", "skeleton", "arrow", "plant"]
+    self._mat_ids = self._world._mat_ids.copy()
+    self._obj_ids = {obj_types[i]: len(self._mat_ids) + i for i in range(len(obj_types))}
 
     self.use_semantic = use_semantic
 
@@ -233,10 +258,29 @@ class Env(BaseClass):
 
   def _semantic_view(self, one_hot_encoding=True):
     x, y = self._player.pos[0], self._player.pos[1]
+    
+    canvas = np.zeros((7,9))
+    for i in range((x-3) - 1, (x-3) + 9 - 1):
+      for j in range((y-4) - 1, (y-4) + 7 - 1):
+        mat, obj = self._world[(i,j)]
+        if mat is None and obj is None:
+          continue
+        #elif obj is not None:
+        #  canvas[i - x + 3, j - y + 4] = self._obj_ids[obj.name]
+        #else:
+        canvas[j - y + 4, i - x + 3] = self._mat_ids[mat]
 
-    sem_view = self._sem_view()
-    sem_view_pad = np.pad(sem_view, [20, 20], mode = "constant", constant_values=0)
-    sem_view = sem_view_pad[(x - 3) + 20 : (x - 3) + 7 + 20, (y - 4) + 20 : (y - 4) + 9 + 20]
+    plot_local_mask_without_inventory(canvas)    
+    
+    """
+    #mat_map = self._world.return_mat_mask((x - 3), (x - 3) + 7, (y - 4),  (y - 4) + 9)
+    #obj_map = self._world.return_obj_mask((x - 3), (x - 3) + 7, (y - 4),  (y - 4) + 9)
+
+    for i in range(obj_map.shape[0]):
+      for j in range(obj_map.shape[1]):
+
+    #sem_view = self._sem_view()
+    #sem_view = sem_view_pad[]
 
     if one_hot_encoding:
 
@@ -260,17 +304,18 @@ class Env(BaseClass):
       obs = np.expand_dims(obs, axis=0)
 
     else:
-      sem_view_flatten = sem_view.flatten()
+    """
+    sem_view_flatten = canvas.flatten()
 
-      inventory = self._player.inventory.copy()
-      inventory = np.fromiter(inventory.values(), dtype=int)
+    inventory = self._player.inventory.copy()
+    inventory = np.fromiter(inventory.values(), dtype=int)
 
-      obs = np.concatenate([sem_view_flatten, inventory])
-      obs = np.pad(obs,[0,2], mode="constant", constant_values=-1).reshape(9,9)
+    obs = np.concatenate([sem_view_flatten, inventory])
+    obs = np.pad(obs,[0,2], mode="constant", constant_values=-1).reshape(9,9)
 
-      #plot_local_mask(obs)
+    #plot_local_mask(obs)
 
-      obs = np.expand_dims(obs, axis=0)
+    obs = np.expand_dims(obs, axis=0)
 
     return obs
 

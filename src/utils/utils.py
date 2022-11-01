@@ -21,7 +21,7 @@ from src.representations.main.custom_loader import CustomCrafterData
 
 assets_path = "/home/roger/Desktop/modded-crafter/crafter/assets/"
 map_semantic = {
-    0 : "unkonwn.png",
+    0 : "unknown.png",
     1 : "water.png",
     2 : "grass.png",
     3 : "stone.png",
@@ -43,6 +43,7 @@ map_semantic = {
 }
 
 map_inventory = {
+    -1 : "unknown.png",
     0: "unknown.png",
     1 : "1.png",
     2 : "2.png",
@@ -94,38 +95,51 @@ def plot_local_semantic_map_from_global(semantic, player_pos, inventory):
     plt.savefig("./lol2.png")
     return fig
 
-def plot_local_semantic_map(semantic):
-    n_rows = 7
+# the mask object is the flattened local semantic + inventory
+def plot_local_mask(mask, mode):
+    n_rows = 9
     n_cols = 9
 
     fig, ax = plt.subplots(9,9)
 
     for i in range(n_rows):
         for j in range(n_cols):
-            ax[i,j].imshow(plt.imread(assets_path + map_semantic[semantic[i][j]]))
+          element = mask[i][j]
+          if i < 7:
+            if element < 0 or element >  18:
+                element = 0
+
+            ax[i,j].imshow(plt.imread(assets_path + map_semantic[element]))
+            ax[i,j].axis('off')
+          else:
+            if element < -1 or element > 9:
+                element = -1
+
+            ax[i,j].imshow(plt.imread(assets_path + map_inventory[element]))
             ax[i,j].axis('off')
 
-    for i in range(n_cols):
-        key = list(inventory.keys())[i]
-        inv = inventory[key]
-        
-        ax[7, i].imshow(plt.imread(assets_path + map_inventory[inv]))
-        ax[7, i].axis('off')
+    plt.savefig("semantic.png")
+    plt.close()
+    return fig
 
-    for i in range(n_cols):
-        if i + n_cols < len(inventory.keys()):
-            key = list(inventory.keys())[i + n_cols]
-            inv = inventory[key]
-            ax[8, i].imshow(plt.imread(assets_path + map_inventory[inv]))
-            ax[8, i].axis('off')
+# the mask object is the flattened local semantic + inventory
+def plot_local_mask_without_inventory(mask):
+    n_rows = 64
+    n_cols = 64
 
-
-    ax[8, 7].axis('off')
-    ax[8, 8].axis('off')
+    fig, ax = plt.subplots(64,64)
     
-    
-    plt.show()
-    plt.savefig("./lol1.png")
+    for i in range(n_rows):
+        for j in range(n_cols):
+            element = mask[i][j]
+            if element < 0 or element >  18:
+                element = 0
+
+            ax[i,j].imshow(plt.imread(assets_path + map_semantic[element]))
+            ax[i,j].axis('off')
+
+    plt.savefig("semantic.png")
+    plt.close()
     return fig
 
 def store_clusters_cnn(traj, conf, enc, path_clusters):
