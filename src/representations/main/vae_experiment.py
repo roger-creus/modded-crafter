@@ -316,12 +316,12 @@ class VAEXperiment(pl.LightningModule):
 
     def train_dataloader(self):
         train_dataset = CustomCrafterData(self.trajectories_train)
-        train_dataloader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=6)
+        train_dataloader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=0)
         return train_dataloader
 
     def val_dataloader(self):
         val_dataset = CustomCrafterData(self.trajectories_val)
-        val_dataloader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False, num_workers=6)
+        val_dataloader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False, num_workers=0)
         return val_dataloader
 
 

@@ -13,6 +13,7 @@ from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.utilities.seed import seed_everything
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.plugins import DDPPlugin
+import wandb
 
 
 parser = argparse.ArgumentParser(description='Generic runner for VAE models')
@@ -31,6 +32,8 @@ with open("/home/mila/r/roger.creus-castanyer/modded-crafter/src/config/" + args
         print(exc)
 
 os.environ["WANDB_API_KEY"] = "e352fb7178eccaebef862095e4789238001ffbaf"
+
+wandb.init(settings=wandb.Settings(start_method="fork"))
 
 wandb_logger = WandbLogger(
     project='crafter',

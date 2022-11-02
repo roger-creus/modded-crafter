@@ -70,18 +70,18 @@ def plot_local_mask(mask, mode):
     for i in range(n_rows):
         for j in range(n_cols):
           element = mask[i][j]
-          if i < 7:
+          if j < 7:
             if element < 0 or element >  18:
                 element = 0
 
-            ax[i,j].imshow(plt.imread(assets_path + map_semantic[element]))
-            ax[i,j].axis('off')
+            ax[j,i].imshow(plt.imread(assets_path + map_semantic[element]))
+            ax[j,i].axis('off')
           else:
             if element < -1 or element > 9:
                 element = -1
 
-            ax[i,j].imshow(plt.imread(assets_path + map_inventory[element]))
-            ax[i,j].axis('off')
+            ax[j,i].imshow(plt.imread(assets_path + map_inventory[element]))
+            ax[j,i].axis('off')
 
     plt.close()
     return fig
@@ -114,8 +114,25 @@ class BetaVAE_PL(pl.LightningModule):
 
         modules = []
         if hidden_dims is None:
-            hidden_dims = [32, 64, 128, 256, 512]
+            #hidden_dims = [32, 64, 128, 256, 512]
+            hidden_dims = [32, 64, 128]
+        
+        modules.append(nn.Sequential(
+                    nn.Conv2d(3, hidden_dims[0], kernel_size= 4, stride= 4),
+                    nn.BatchNorm2d(hidden_dims[0]),
+                    nn.LeakyReLU()))
 
+        modules.append(nn.Sequential(
+                    nn.Conv2d(hidden_dims[0], hidden_dims[1], kernel_size= 4, stride= 2),
+                    nn.BatchNorm2d(hidden_dims[1]),
+                    nn.LeakyReLU()))
+
+        modules.append(nn.Sequential(
+                    nn.Conv2d(hidden_dims[1], hidden_dims[2], kernel_size= 3, stride= 1),
+                    nn.BatchNorm2d(hidden_dims[2]),
+                    nn.LeakyReLU()))
+        
+        """
         # Build Encoder
         for h_dim in hidden_dims:
             modules.append(
@@ -126,18 +143,21 @@ class BetaVAE_PL(pl.LightningModule):
                     nn.LeakyReLU())
             )
             in_channels = h_dim
+        """
 
         self.encoder = nn.Sequential(*modules)
-        self.fc_mu = nn.Linear(hidden_dims[-1]*4, latent_dim)
-        self.fc_var = nn.Linear(hidden_dims[-1]*4, latent_dim)
+        self.fc_mu = nn.Linear(hidden_dims[-1]*25, latent_dim)
+        self.fc_var = nn.Linear(hidden_dims[-1]*25, latent_dim)
 
 
         # Build Decoder
         modules = []
 
         if not self.use_semantic:
-            self.decoder_input = nn.Linear(latent_dim, hidden_dims[-1] * 4)
+            self.decoder_input = nn.Linear(latent_dim, hidden_dims[-1] * 25)
             
+            """
+
             hidden_dims.reverse()
 
             for i in range(len(hidden_dims) - 1):
@@ -153,19 +173,34 @@ class BetaVAE_PL(pl.LightningModule):
                         nn.LeakyReLU())
                 )
 
- 
+            """
+
+            modules.append(nn.Sequential(
+                        nn.ConvTranspose2d(hidden_dims[2],
+                                        hidden_dims[1],
+                                        kernel_size=3,
+                                        stride = 1),
+                        nn.BatchNorm2d(hidden_dims[1]),
+                        nn.LeakyReLU()))
+
+            modules.append(nn.Sequential(
+                        nn.ConvTranspose2d(hidden_dims[1],
+                                        hidden_dims[0],
+                                        kernel_size=4,
+                                        stride = 2),
+                        nn.BatchNorm2d(hidden_dims[0]),
+                        nn.LeakyReLU()))
+            
             self.decoder = nn.Sequential(*modules)
 
             self.final_layer = nn.Sequential(
-                                nn.ConvTranspose2d(hidden_dims[-1],
-                                                hidden_dims[-1],
-                                                kernel_size=3,
-                                                stride=2,
-                                                padding=1,
-                                                output_padding=1),
-                                nn.BatchNorm2d(hidden_dims[-1]),
+                                nn.ConvTranspose2d(hidden_dims[0],
+                                                hidden_dims[0],
+                                                kernel_size=4,
+                                                stride=4),
+                                nn.BatchNorm2d(hidden_dims[0]),
                                 nn.LeakyReLU(),
-                                nn.Conv2d(hidden_dims[-1], out_channels= 3,
+                                nn.Conv2d(hidden_dims[0], out_channels= 3,
                                         kernel_size= 3, padding= 1),
                                 nn.Tanh())
 
@@ -200,7 +235,7 @@ class BetaVAE_PL(pl.LightningModule):
         result = self.decoder_input(z)
 
         if not self.use_semantic:
-            result = result.view(-1, 512, 2, 2)
+            result = result.view(-1, 128, 5, 5)
             result = self.decoder(result)
             result = self.final_layer(result)
         else:
