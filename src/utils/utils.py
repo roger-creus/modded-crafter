@@ -64,25 +64,26 @@ def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
 
 def plot_local_semantic_map_from_global(semantic, player_pos, inventory):
     x, y = player_pos[0], player_pos[1]
-    n_rows = 7
-    n_cols = 9
+    n_rows = 9
+    n_cols = 7
     fig, ax = plt.subplots(9,9)
+
 
     for i in range(n_rows):
         for j in range(n_cols):
-            ax[i,j].imshow(plt.imread(assets_path + map_semantic[semantic[(x - 3) + i][(y - 4) +  j]]))
-            ax[i,j].axis('off')
+            ax[j,i].imshow(plt.imread(assets_path + map_semantic[semantic[(x - 4) + i][(y - 3) +  j]]))
+            ax[j,i].axis('off')
 
-    for i in range(n_cols):
+    for i in range(n_rows):
         key = list(inventory.keys())[i]
         inv = inventory[key]
         
         ax[7, i].imshow(plt.imread(assets_path + map_inventory[inv]))
         ax[7, i].axis('off')
 
-    for i in range(n_cols):
-        if i + n_cols < len(inventory.keys()):
-            key = list(inventory.keys())[i + n_cols]
+    for i in range(n_rows):
+        if i + n_rows < len(inventory.keys()):
+            key = list(inventory.keys())[i + n_rows]
             inv = inventory[key]
             ax[8, i].imshow(plt.imread(assets_path + map_inventory[inv]))
             ax[8, i].axis('off')
@@ -91,8 +92,8 @@ def plot_local_semantic_map_from_global(semantic, player_pos, inventory):
     ax[8, 7].axis('off')
     ax[8, 8].axis('off')
 
-    plt.show()
-    plt.savefig("./lol2.png")
+    #plt.show()
+    plt.savefig("./semantic.png")
     return fig
 
 # the mask object is the flattened local semantic + inventory

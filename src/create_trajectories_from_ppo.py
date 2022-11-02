@@ -101,15 +101,15 @@ for env_ in range(envs_num):
             # shape is (W,H,C) = (64,64,3)
             trajectory.append(obs)
             plt.imsave("obs.png", obs)
-
-            x,y = info["player_pos"]
             
             #semantic = env._semantic_view(one_hot_encoding=False).transpose(1,2,0)
 
-            semantic = info["semantic"][(x-3):(x-3) + 7, (y - 4):(y-4) + 9]
+            semantic = info["semantic"]
+
+            plot_local_semantic_map_from_global(semantic, info["player_pos"], info["inventory"])
+
             embed()
 
-            plot_local_mask_without_inventory(semantic)
 
             trajectory_semantics.append(semantic)
 
