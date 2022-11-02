@@ -85,7 +85,6 @@ dependencies:
     - pygments==2.13.0
     - pyparsing==3.0.9
     - python-dateutil==2.8.2
-    - pytorch-lightning==1.7.7
     - pytz==2022.4
     - pyyaml==6.0
     - requests==2.28.1
@@ -104,10 +103,6 @@ dependencies:
     - stack-data==0.5.1
     - tensorboard==2.10.1
     - threadpoolctl==3.1.0
-    - torch==1.12.1+cu116
-    - torchaudio==0.12.1+cu116
-    - torchmetrics==0.10.0
-    - torchvision==0.13.1+cu116
     - tqdm==4.64.1
     - traitlets==5.4.0
     - typing-extensions==4.4.0
@@ -115,4 +110,4 @@ dependencies:
     - wandb==0.13.4
     - wcwidth==0.2.5
     - yarl==1.8.1
-prefix: /home/roger/anaconda3/envs/custom-crafter
+prefix: custom-crafter

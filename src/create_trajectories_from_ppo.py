@@ -96,20 +96,21 @@ for env_ in range(envs_num):
             
             next_obs, reward, done, info = env.step(action.item())
             
-            player_pos = np.array(info["player_pos"])
 
             # shape is (W,H,C) = (64,64,3)
             trajectory.append(obs)
             plt.imsave("obs.png", obs)
-            
-            #semantic = env._semantic_view(one_hot_encoding=False).transpose(1,2,0)
 
             semantic = info["semantic"]
+            player_pos = np.array(info["player_pos"])
+            inventory = info["inventory"]
 
-            plot_local_semantic_map_from_global(semantic, info["player_pos"], info["inventory"])
 
-            embed()
+            local_semantic = get_local_semantic(semantic, player_pos)
 
+            inventory = np.pad(np.array(list(info['inventory'].values())).flatten(), [0,2], mode="constant", constant_values = -1).reshape(9,2)
+
+            semantic = np.append(local_semantic, inventory, axis = 1)
 
             trajectory_semantics.append(semantic)
 

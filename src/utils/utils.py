@@ -62,6 +62,57 @@ def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
     return layer
 
 
+def get_local_semantic(semantic, player_pos):
+    x, y = player_pos[0], player_pos[1]
+    semantic = np.pad(semantic, [20,20],  mode = "constant", constant_values=0)
+    
+    n_rows = 9
+    n_cols = 7
+    
+    local_semantic = semantic[(x - 4) + 20 : (x - 4) + 20 + n_rows, (y - 3) + 20 : (y - 3) + 20 + n_cols]
+
+
+    return local_semantic
+
+def plot_local_mask(semantic):
+    n_rows = 9
+    n_cols = 7
+    fig, ax = plt.subplots(9,9)
+
+    semantic = semantic.reshape(9,9)
+
+    semantic_img = semantic[:, 0:7]
+    inventory = semantic[:, 7:9].flatten()
+
+    print("MINE")
+    print(semantic_img)
+
+    for i in range(n_rows):
+        for j in range(n_cols):
+            ax[j,i].imshow(plt.imread(assets_path + map_semantic[semantic_img[i,j]]))
+            ax[j,i].axis('off')
+
+    for i in range(n_rows):
+        inv = inventory[i]
+        
+        ax[7, i].imshow(plt.imread(assets_path + map_inventory[inv]))
+        ax[7, i].axis('off')
+
+    for i in range(n_rows):
+        if i + n_rows < len(inventory):
+            inv = inventory[i + n_rows]
+            ax[8, i].imshow(plt.imread(assets_path + map_inventory[inv]))
+            ax[8, i].axis('off')
+
+    ax[8, 7].axis('off')
+    ax[8, 8].axis('off')
+
+    plt.savefig("./semantic_mine.png")
+
+    return fig
+
+   
+
 def plot_local_semantic_map_from_global(semantic, player_pos, inventory):
     x, y = player_pos[0], player_pos[1]
     n_rows = 9
@@ -70,6 +121,9 @@ def plot_local_semantic_map_from_global(semantic, player_pos, inventory):
 
     semantic = np.pad(semantic, [20,20],  mode = "constant", constant_values=0)
     local_semantic = semantic[(x - 4) + 20 : (x - 4) + 20 + n_rows, (y - 3) + 20 : (y - 3) + 20 + n_cols]
+
+    print("GOOD")
+    print(local_semantic)
 
     for i in range(n_rows):
         for j in range(n_cols):
@@ -97,54 +151,6 @@ def plot_local_semantic_map_from_global(semantic, player_pos, inventory):
     #plt.show()
     plt.savefig("./semantic.png")
 
-    embed()
-    return fig
-
-# the mask object is the flattened local semantic + inventory
-def plot_local_mask(mask, mode):
-    n_rows = 9
-    n_cols = 9
-
-    fig, ax = plt.subplots(9,9)
-
-    for i in range(n_rows):
-        for j in range(n_cols):
-          element = mask[i][j]
-          if i < 7:
-            if element < 0 or element >  18:
-                element = 0
-
-            ax[i,j].imshow(plt.imread(assets_path + map_semantic[element]))
-            ax[i,j].axis('off')
-          else:
-            if element < -1 or element > 9:
-                element = -1
-
-            ax[i,j].imshow(plt.imread(assets_path + map_inventory[element]))
-            ax[i,j].axis('off')
-
-    plt.savefig("semantic.png")
-    plt.close()
-    return fig
-
-# the mask object is the flattened local semantic + inventory
-def plot_local_mask_without_inventory(mask):
-    n_rows = 64
-    n_cols = 64
-
-    fig, ax = plt.subplots(64,64)
-    
-    for i in range(n_rows):
-        for j in range(n_cols):
-            element = mask[i][j]
-            if element < 0 or element >  18:
-                element = 0
-
-            ax[i,j].imshow(plt.imread(assets_path + map_semantic[element]))
-            ax[i,j].axis('off')
-
-    plt.savefig("semantic.png")
-    plt.close()
     return fig
 
 def store_clusters_cnn(traj, conf, enc, path_clusters):
