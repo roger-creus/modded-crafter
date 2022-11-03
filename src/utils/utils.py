@@ -68,10 +68,12 @@ def plot_local_semantic_map_from_global(semantic, player_pos, inventory):
     n_cols = 7
     fig, ax = plt.subplots(9,9)
 
+    semantic = np.pad(semantic, [20,20],  mode = "constant", constant_values=0)
+    local_semantic = semantic[(x - 4) + 20 : (x - 4) + 20 + n_rows, (y - 3) + 20 : (y - 3) + 20 + n_cols]
 
     for i in range(n_rows):
         for j in range(n_cols):
-            ax[j,i].imshow(plt.imread(assets_path + map_semantic[semantic[(x - 4) + i][(y - 3) +  j]]))
+            ax[j,i].imshow(plt.imread(assets_path + map_semantic[local_semantic[i,j]]))
             ax[j,i].axis('off')
 
     for i in range(n_rows):
@@ -94,6 +96,8 @@ def plot_local_semantic_map_from_global(semantic, player_pos, inventory):
 
     #plt.show()
     plt.savefig("./semantic.png")
+
+    embed()
     return fig
 
 # the mask object is the flattened local semantic + inventory
