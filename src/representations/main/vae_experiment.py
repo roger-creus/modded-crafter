@@ -156,15 +156,13 @@ class SemanticPredictorExperiment(pl.LightningModule):
         self.trajectories_train, self.trajectories_val = get_train_val_split(self.trajectories, self.split)
         
         self.predictor = nn.Sequential(
+            nn.Linear(128, 256),
+            nn.ReLU(),
             nn.Linear(256, 512),
             nn.ReLU(),
-            nn.Linear(512, 1024),
+            nn.Linear(512, 256),
             nn.ReLU(),
-            nn.Linear(1024, 1024),
-            nn.ReLU(),
-            nn.Linear(1024, 512),
-            nn.ReLU(),
-            nn.Linear(512, 81)
+            nn.Linear(256, 81)
         )
 
         self.hold_graph = False
@@ -204,7 +202,6 @@ class SemanticPredictorExperiment(pl.LightningModule):
             self.sample(num_samples = 1, current_device = 0)
             x = real_img[0, :, :, :].unsqueeze(0)
             y = labels[0, :].unsqueeze(0)
-            
             self.generate(x, y)
 
         self.log('train_loss/train_epoch', train_loss, on_step=False, on_epoch=True, sync_dist = True)
@@ -231,7 +228,7 @@ class SemanticPredictorExperiment(pl.LightningModule):
         samples = self.model.decode(z)
         predictions = self.predictor(z)
         
-        p = plot_local_mask(predictions[0,:].squeeze(0).cpu().detach().numpy(), mode = "prediction:") 
+        p = plot_local_mask(predictions[0,:].squeeze(0).cpu().detach().numpy()) 
         
         self.logger.experiment.log({'VAE samples': wandb.Image(samples.squeeze(0).permute(1,2,0).cpu().detach().numpy())})
         self.logger.experiment.log({'VAE samples semantic predictions': wandb.Image(p)})
@@ -241,10 +238,8 @@ class SemanticPredictorExperiment(pl.LightningModule):
         recons = self.model.forward(inputs)[0]
         p = self.forward(inputs)
 
-
-
-        y = plot_local_mask(labels[0,:].squeeze(0).cpu().detach().numpy(), mode = "ground truth:")
-        predictor = plot_local_mask(p[0,:].squeeze(0).cpu().detach().numpy(), mode = "semantic predictor:")
+        y = plot_local_mask(labels[0,:].squeeze(0).cpu().detach().numpy())
+        predictor = plot_local_mask(p[0,:].squeeze(0).cpu().detach().numpy())
         
         fig, (ax1, ax2) = plt.subplots(1, 2, sharey=True, figsize=(8, 4))
         ax1.imshow(inputs[0,:,:,:].permute(1,2,0).cpu().detach().numpy(), interpolation='nearest')

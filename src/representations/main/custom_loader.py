@@ -84,7 +84,7 @@ class CustomCrafterData_SEMANTIC(Dataset):
             semantic = np.load(str(self.path) + "/semantics/" + str(env_name) + "/trajectory_semantics_" + str(traj_num) + ".npy", allow_pickle=True)
 
             data.append(obs)
-            semantics.append(semantic)
+            semantics.append(semantic.flatten())
 
         data = np.concatenate(np.array(data, dtype='object')).reshape(-1, 64, 64, 3)
         semantics = np.concatenate(np.array(semantics, dtype='object')).reshape(-1, 81)
@@ -104,7 +104,7 @@ class CustomCrafterData_SEMANTIC(Dataset):
 
         # for RGB images only
         x = torch.div(x.unsqueeze(0).permute(0,3,1,2), 255)
-        y = torch.div(y.unsqueeze(0), 18)
+        y = y.unsqueeze(0)
         return x,y
 
 

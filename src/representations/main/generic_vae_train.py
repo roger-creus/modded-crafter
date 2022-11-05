@@ -33,7 +33,7 @@ with open("/home/mila/r/roger.creus-castanyer/modded-crafter/src/config/" + args
 
 os.environ["WANDB_API_KEY"] = "e352fb7178eccaebef862095e4789238001ffbaf"
 
-wandb.init(settings=wandb.Settings(start_method="fork"))
+#wandb.init(settings=wandb.Settings(start_method="fork"))
 
 wandb_logger = WandbLogger(
     project='crafter',

@@ -43,13 +43,12 @@ envs_num = args.envs_num
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 agent = Agent().to(device)
-#agent.load_state_dict(torch.load("/home/mila/r/roger.creus-castanyer/modded-crafter/src/checkpoints/ppo-14254080.pt"))
-agent.load_state_dict(torch.load("/home/roger/Desktop/modded-crafter/src/checkpoints/ppo-14254080.pt"))
+agent.load_state_dict(torch.load("/home/mila/r/roger.creus-castanyer/modded-crafter/src/checkpoints/ppo-14254080.pt"))
+#agent.load_state_dict(torch.load("/home/roger/Desktop/modded-crafter/src/checkpoints/ppo-14254080.pt"))
 
 os.makedirs(args.save_path + "/tmp/" + "observations/")
 os.makedirs(args.save_path + "/tmp/" + "semantics/")
 os.makedirs(args.save_path + "/tmp/" + "positions/")
-
 
 for env_ in range(envs_num):
     
@@ -96,27 +95,26 @@ for env_ in range(envs_num):
             
             next_obs, reward, done, info = env.step(action.item())
             
-
-            # shape is (W,H,C) = (64,64,3)
-            trajectory.append(obs)
-            plt.imsave("obs.png", obs)
-
+            # get required info to generate semantic map and record positions
             semantic = info["semantic"]
             player_pos = np.array(info["player_pos"])
             inventory = info["inventory"]
 
-
+            # get the 7x9 image
             local_semantic = get_local_semantic(semantic, player_pos)
 
+            # get the 2x9 inventory
             inventory = np.pad(np.array(list(info['inventory'].values())).flatten(), [0,2], mode="constant", constant_values = -1).reshape(9,2)
 
+            # append both to have a 9x9 image
             semantic = np.append(local_semantic, inventory, axis = 1)
 
+            trajectory.append(obs)
             trajectory_semantics.append(semantic)
-
             trajectory_positions.append(player_pos)
 
             obs = next_obs
+
 
         trajectory = np.array(trajectory)
         trajectory_semantics = np.array(trajectory_semantics)

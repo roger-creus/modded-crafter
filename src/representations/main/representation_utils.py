@@ -116,6 +116,7 @@ def index_map(trajectories_positions, embeddings, enc):
     plt.savefig("/home/mila/r/roger.creus-castanyer/modded-crafter/imgs/index_map_" + enc.trajectories[0].split("/")[1] + ".png")
 
 
+
 assets_path = "/home/mila/r/roger.creus-castanyer/modded-crafter/crafter/assets/"
 map_semantic = {
     0 : "unknown.png",
@@ -153,41 +154,39 @@ map_inventory = {
     9 : "9.png"
 }
 
-# the mask object is the flattened local semantic + inventory
-def plot_local_mask(mask, mode):
-
-    # mask originally is (1,81)
-    mask = mask.reshape(9,9)
-
-    # upscale mask since it was normalized to 0-1 using (/18)
-    mask = (mask * 18)
-
-    # rounding for predicted masks
-    mask = np.round_(mask).astype(int)
-
-    print(mode)
-    print(mask)
-
+def plot_local_mask(semantic):
     n_rows = 9
-    n_cols = 9
-
+    n_cols = 7
     fig, ax = plt.subplots(9,9)
 
+    semantic = np.around(semantic).astype(int)
+    semantic = semantic.reshape(9,9)
+
+    semantic_img = semantic[0:7, :]
+    semantic_img = np.clip(semantic_img, 0, 18)
+    
+    inventory = np.transpose(semantic[7:9, :]).flatten()
+    inventory = np.clip(inventory, -1, 9)
+
+    
     for i in range(n_rows):
         for j in range(n_cols):
-          element = mask[i][j]
-          if i < 7:
-            if element < 0 or element >  18:
-                element = 0
+            ax[j,i].imshow(plt.imread(assets_path + map_semantic[semantic_img[j,i]]))
+            ax[j,i].axis('off')
 
-            ax[i,j].imshow(plt.imread(assets_path + map_semantic[element]))
-            ax[i,j].axis('off')
-          else:
-            if element < -1 or element > 9:
-                element = -1
+    for i in range(n_rows):
+        inv = inventory[i]
+        
+        ax[7, i].imshow(plt.imread(assets_path + map_inventory[inv]))
+        ax[7, i].axis('off')
 
-            ax[i,j].imshow(plt.imread(assets_path + map_inventory[element]))
-            ax[i,j].axis('off')
+    for i in range(n_rows):
+        if i + n_rows < len(inventory):
+            inv = inventory[i + n_rows]
+            ax[8, i].imshow(plt.imread(assets_path + map_inventory[inv]))
+            ax[8, i].axis('off')
 
-    plt.close()
+    ax[8, 7].axis('off')
+    ax[8, 8].axis('off')
+
     return fig
