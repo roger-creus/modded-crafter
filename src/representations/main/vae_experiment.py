@@ -14,6 +14,118 @@ import wandb
 
 from collections import OrderedDict
 
+class VAEXperiment(pl.LightningModule):
+
+    def __init__(self,
+                 vae_model,
+                 params: dict) -> None:
+        super(VAEXperiment, self).__init__()
+
+        self.model = vae_model
+        self.params = params
+        self.curr_device = None
+
+        self.batch_size = self.params['batch_size']
+        self.split = self.params['split']
+        self.trajectories = self.params['trajectories']
+        self.trajectories_train, self.trajectories_val = get_train_val_split(self.trajectories, self.split)
+
+        self.hold_graph = False
+        try:
+            self.hold_graph = self.params['retain_first_backpass']
+        except:
+            pass
+
+    def train_dataloader(self):
+        train_dataset = CustomCrafterData(self.trajectories_train)
+        train_dataloader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=0)
+        return train_dataloader
+
+    def val_dataloader(self):
+        val_dataset = CustomCrafterData(self.trajectories_val)
+        val_dataloader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False, num_workers=0)
+        return val_dataloader
+
+
+    def forward(self, input, **kwargs):
+        return self.model(input, **kwargs)
+
+    def training_step(self, batch, batch_idx, optimizer_idx = 0):
+        batch = batch.squeeze(1)
+        real_img = batch
+        
+        self.curr_device = real_img.device
+
+        results = self.forward(real_img)
+        train_loss = self.model.loss_function(*results,
+                                              use_semantic = False,
+                                              M_N = self.params['kld_weight'], #al_img.shape[0]/ self.num_train_imgs,
+                                              optimizer_idx=optimizer_idx,
+                                              batch_idx = batch_idx)
+
+        if batch_idx % 2000 == 0:
+            self.model.sample(num_samples = 8, current_device = 0, logger = self.logger)
+            batch_plot = batch[0:8, :, :, :]
+            self.model.generate(batch_plot, logger = self.logger)
+
+
+        self.log('total_loss/train_epoch', train_loss["loss"], on_step=False, on_epoch=True, sync_dist = True)
+        self.log('recon_loss/train_epoch', train_loss["Reconstruction_Loss"], on_step=False, on_epoch=True, sync_dist = True)
+        self.log('kl_loss/train_epoch', train_loss["KLD"], on_step=False, on_epoch=True, sync_dist = True)                                      
+
+        return train_loss['loss']
+
+    def validation_step(self, batch, batch_idx, optimizer_idx = 0):
+        batch = batch.squeeze(1)
+        
+        real_img = batch
+        self.curr_device = real_img.device
+
+        results = self.forward(real_img)
+        val_loss = self.model.loss_function(*results,
+                                            use_semantic = False,
+                                            M_N = 1.0, #real_img.shape[0]/ self.num_val_imgs,
+                                            optimizer_idx = optimizer_idx,
+                                            batch_idx = batch_idx)
+
+        self.log('total_loss/val_epoch', val_loss["loss"], on_step=False, on_epoch=True, sync_dist = True)
+        self.log('recon_loss/val_epoch', val_loss["Reconstruction_Loss"], on_step=False, on_epoch=True, sync_dist = True)
+        self.log('kl_loss/val__epoch', val_loss["KLD"], on_step=False, on_epoch=True, sync_dist = True) 
+
+    def configure_optimizers(self):
+        optims = []
+        scheds = []
+
+        optimizer = optim.Adam(self.model.parameters(),
+                               lr=self.params['lr'],
+                               weight_decay=self.params['weight_decay'])
+        optims.append(optimizer)
+        # Check if more than 1 optimizer is required (Used for adversarial training)
+        try:
+            if self.params['LR_2'] is not None:
+                optimizer2 = optim.Adam(getattr(self.model,self.params['submodel']).parameters(),
+                                        lr=self.params['LR_2'])
+                optims.append(optimizer2)
+        except:
+            pass
+
+        try:
+            if self.params['scheduler_gamma'] is not None:
+                scheduler = optim.lr_scheduler.ExponentialLR(optims[0], gamma = self.params['scheduler_gamma'])
+                scheds.append(scheduler)
+
+                # Check if another scheduler is required for the second optimizer
+                try:
+                    if self.params['scheduler_gamma_2'] is not None:
+                        scheduler2 = optim.lr_scheduler.ExponentialLR(optims[1],
+                                                                      gamma = self.params['scheduler_gamma_2'])
+                        scheds.append(scheduler2)
+                except:
+                    pass
+                return optims, scheds
+        except:
+            return optims
+
 class VAEXperiment_SEMANTIC(pl.LightningModule):
 
     def __init__(self,
@@ -132,6 +244,34 @@ class VAEXperiment_SEMANTIC(pl.LightningModule):
             return optims
 
 
+
+class MultiHeads(nn.Module):
+    def __init__(self):
+        super(MultiHeads, self).__init__()
+        self.heads = nn.ModuleList([])
+        
+        for i in range(63):
+            self.heads.append(
+                nn.Linear(128, 19)
+            )
+
+        for i in range(18):
+            self.heads.append(
+                nn.Linear(128, 10)
+            )
+
+
+    def forward(self, x):
+        outs_img = []
+        for i in range(63):
+            outs_img.append(self.heads[i](x))
+
+        outs_inventory = []
+        for i in range(18):
+            outs_inventory.append(self.heads[63+i](x))
+
+        return torch.stack(outs_img), torch.stack(outs_inventory)
+
 class SemanticPredictorExperiment(pl.LightningModule):
 
     def __init__(self,
@@ -153,18 +293,23 @@ class SemanticPredictorExperiment(pl.LightningModule):
         self.batch_size = self.params['batch_size']
         self.split = self.params['split']
         self.trajectories = self.params['trajectories']
-        self.trajectories_train, self.trajectories_val = get_train_val_split(self.trajectories, self.split)
+        self.trajectories_train, self.trajectories_val = get_train_val_split(self.trajectories, self.split, path = "/home/roger/Desktop/modded-crafter/src/representations/trajectories/tmp/")
+
+        self.loss_fct_type = nn.CrossEntropyLoss()
         
-        self.predictor = nn.Sequential(
+        self.predictor_shared = nn.Sequential(
             nn.Linear(128, 256),
             nn.ReLU(),
             nn.Linear(256, 512),
             nn.ReLU(),
             nn.Linear(512, 256),
             nn.ReLU(),
-            nn.Linear(256, 81)
+            nn.Linear(256, 128),
+            nn.ReLU()
         )
 
+        self.heads = MultiHeads()
+        
         self.hold_graph = False
         try:
             self.hold_graph = self.params['retain_first_backpass']
@@ -172,12 +317,12 @@ class SemanticPredictorExperiment(pl.LightningModule):
             pass
 
     def train_dataloader(self):
-        train_dataset = CustomCrafterData_SEMANTIC(self.trajectories_train)
+        train_dataset = CustomCrafterData_SEMANTIC(self.trajectories_train, path = "/home/roger/Desktop/modded-crafter/src/representations/trajectories/tmp/")
         train_dataloader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=0)
         return train_dataloader
 
     def val_dataloader(self):
-        val_dataset = CustomCrafterData_SEMANTIC(self.trajectories_val)
+        val_dataset = CustomCrafterData_SEMANTIC(self.trajectories_val, path = "/home/roger/Desktop/modded-crafter/src/representations/trajectories/tmp/")
         val_dataloader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False, num_workers=0)
         return val_dataloader
 
@@ -185,23 +330,38 @@ class SemanticPredictorExperiment(pl.LightningModule):
     def forward(self, input, **kwargs):
         mu, log_var = self.model.encode(input)
         z = self.model.reparameterize(mu, log_var)
-        p = self.predictor(z)
+        x = self.predictor_shared(z)
+        p = self.heads(x)
         return p
+
+    def loss_fct(self, predictions, labels):
+        labels_img = labels[0].squeeze(1)
+        labels_inventory = labels[1].squeeze(1)
+
+        predictions_img = predictions[0].permute(1,0,2)
+        predictions_inventory = predictions[1].permute(1,0,2)
+        
+        loss_img = self.loss_fct_type(predictions_img.float(), labels_img.float())
+        loss_inventory = self.loss_fct_type(predictions_inventory.float(), labels_inventory.float())
+        
+        total_loss = loss_img + loss_inventory
+
+        return total_loss
+        
 
     def training_step(self, batch, batch_idx, optimizer_idx = 0):
         real_img, labels = batch
         real_img = real_img.squeeze(1)
-        labels = labels.squeeze(1)
 
         self.curr_device = real_img.device
 
         results = self.forward(real_img)
-        train_loss = F.mse_loss(results, labels)
+        train_loss = self.loss_fct(results, labels)
 
         if batch_idx % 2000 == 0:
             self.sample(num_samples = 1, current_device = 0)
             x = real_img[0, :, :, :].unsqueeze(0)
-            y = labels[0, :].unsqueeze(0)
+            y = labels
             self.generate(x, y)
 
         self.log('train_loss/train_epoch', train_loss, on_step=False, on_epoch=True, sync_dist = True)
@@ -211,13 +371,12 @@ class SemanticPredictorExperiment(pl.LightningModule):
     def validation_step(self, batch, batch_idx, optimizer_idx = 0):
         real_img, labels = batch
         real_img = real_img.squeeze(1)
-        labels = labels.squeeze(1)
-
+        
         self.curr_device = real_img.device
 
         results = self.forward(real_img, labels = labels)
         
-        val_loss = F.mse_loss(results, labels)
+        val_loss = self.loss_fct(results, labels)
 
         self.log('val_loss/val_epoch', val_loss, on_step=False, on_epoch=True, sync_dist = True)
 
@@ -226,9 +385,15 @@ class SemanticPredictorExperiment(pl.LightningModule):
         z = z.to(current_device)
 
         samples = self.model.decode(z)
-        predictions = self.predictor(z)
         
-        p = plot_local_mask(predictions[0,:].squeeze(0).cpu().detach().numpy()) 
+        x = self.predictor_shared(z)
+        p = self.heads(x)
+
+        predicted_img = torch.argmax(p[0].squeeze(1), axis = -1).cpu().detach().numpy().astype(int)
+        predicted_inventory = torch.argmax(p[1].squeeze(1), axis = -1).cpu().detach().numpy().astype(int)
+        predictions = np.concatenate([predicted_img, predicted_inventory])
+        
+        p = plot_local_mask(predictions) 
         
         self.logger.experiment.log({'VAE samples': wandb.Image(samples.squeeze(0).permute(1,2,0).cpu().detach().numpy())})
         self.logger.experiment.log({'VAE samples semantic predictions': wandb.Image(p)})
@@ -238,8 +403,16 @@ class SemanticPredictorExperiment(pl.LightningModule):
         recons = self.model.forward(inputs)[0]
         p = self.forward(inputs)
 
-        y = plot_local_mask(labels[0,:].squeeze(0).cpu().detach().numpy())
-        predictor = plot_local_mask(p[0,:].squeeze(0).cpu().detach().numpy())
+        predicted_img = torch.argmax(p[0].squeeze(1), axis = -1).cpu().detach().numpy().astype(int)
+        predicted_inventory = torch.argmax(p[1].squeeze(1), axis = -1).cpu().detach().numpy().astype(int)
+        predictions = np.concatenate([predicted_img, predicted_inventory])
+
+        labels_img = torch.argmax(labels[0].squeeze(1)[0], axis = -1).cpu().detach().numpy().astype(int)
+        labels_inventory = torch.argmax(labels[1].squeeze(1)[0], axis = -1).cpu().detach().numpy().astype(int)
+        labels = np.concatenate([labels_img, labels_inventory])
+
+        y = plot_local_mask(labels)
+        predictor = plot_local_mask(predictions)
         
         fig, (ax1, ax2) = plt.subplots(1, 2, sharey=True, figsize=(8, 4))
         ax1.imshow(inputs[0,:,:,:].permute(1,2,0).cpu().detach().numpy(), interpolation='nearest')
@@ -252,118 +425,6 @@ class SemanticPredictorExperiment(pl.LightningModule):
         self.logger.experiment.log({'Semantic predictor': wandb.Image(predictor)})
 
         plt.close(fig)
-
-    def configure_optimizers(self):
-        optims = []
-        scheds = []
-
-        optimizer = optim.Adam(self.model.parameters(),
-                               lr=self.params['lr'],
-                               weight_decay=self.params['weight_decay'])
-        optims.append(optimizer)
-        # Check if more than 1 optimizer is required (Used for adversarial training)
-        try:
-            if self.params['LR_2'] is not None:
-                optimizer2 = optim.Adam(getattr(self.model,self.params['submodel']).parameters(),
-                                        lr=self.params['LR_2'])
-                optims.append(optimizer2)
-        except:
-            pass
-
-        try:
-            if self.params['scheduler_gamma'] is not None:
-                scheduler = optim.lr_scheduler.ExponentialLR(optims[0], gamma = self.params['scheduler_gamma'])
-                scheds.append(scheduler)
-
-                # Check if another scheduler is required for the second optimizer
-                try:
-                    if self.params['scheduler_gamma_2'] is not None:
-                        scheduler2 = optim.lr_scheduler.ExponentialLR(optims[1],
-                                                                      gamma = self.params['scheduler_gamma_2'])
-                        scheds.append(scheduler2)
-                except:
-                    pass
-                return optims, scheds
-        except:
-            return optims
-
-class VAEXperiment(pl.LightningModule):
-
-    def __init__(self,
-                 vae_model,
-                 params: dict) -> None:
-        super(VAEXperiment, self).__init__()
-
-        self.model = vae_model
-        self.params = params
-        self.curr_device = None
-
-        self.batch_size = self.params['batch_size']
-        self.split = self.params['split']
-        self.trajectories = self.params['trajectories']
-        self.trajectories_train, self.trajectories_val = get_train_val_split(self.trajectories, self.split)
-
-        self.hold_graph = False
-        try:
-            self.hold_graph = self.params['retain_first_backpass']
-        except:
-            pass
-
-    def train_dataloader(self):
-        train_dataset = CustomCrafterData(self.trajectories_train)
-        train_dataloader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=0)
-        return train_dataloader
-
-    def val_dataloader(self):
-        val_dataset = CustomCrafterData(self.trajectories_val)
-        val_dataloader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False, num_workers=0)
-        return val_dataloader
-
-
-    def forward(self, input, **kwargs):
-        return self.model(input, **kwargs)
-
-    def training_step(self, batch, batch_idx, optimizer_idx = 0):
-        batch = batch.squeeze(1)
-        real_img = batch
-        
-        self.curr_device = real_img.device
-
-        results = self.forward(real_img)
-        train_loss = self.model.loss_function(*results,
-                                              use_semantic = False,
-                                              M_N = self.params['kld_weight'], #al_img.shape[0]/ self.num_train_imgs,
-                                              optimizer_idx=optimizer_idx,
-                                              batch_idx = batch_idx)
-
-        if batch_idx % 2000 == 0:
-            self.model.sample(num_samples = 8, current_device = 0, logger = self.logger)
-            batch_plot = batch[0:8, :, :, :]
-            self.model.generate(batch_plot, logger = self.logger)
-
-
-        self.log('total_loss/train_epoch', train_loss["loss"], on_step=False, on_epoch=True, sync_dist = True)
-        self.log('recon_loss/train_epoch', train_loss["Reconstruction_Loss"], on_step=False, on_epoch=True, sync_dist = True)
-        self.log('kl_loss/train_epoch', train_loss["KLD"], on_step=False, on_epoch=True, sync_dist = True)                                      
-
-        return train_loss['loss']
-
-    def validation_step(self, batch, batch_idx, optimizer_idx = 0):
-        batch = batch.squeeze(1)
-        
-        real_img = batch
-        self.curr_device = real_img.device
-
-        results = self.forward(real_img)
-        val_loss = self.model.loss_function(*results,
-                                            use_semantic = False,
-                                            M_N = 1.0, #real_img.shape[0]/ self.num_val_imgs,
-                                            optimizer_idx = optimizer_idx,
-                                            batch_idx = batch_idx)
-
-        self.log('total_loss/val_epoch', val_loss["loss"], on_step=False, on_epoch=True, sync_dist = True)
-        self.log('recon_loss/val_epoch', val_loss["Reconstruction_Loss"], on_step=False, on_epoch=True, sync_dist = True)
-        self.log('kl_loss/val__epoch', val_loss["KLD"], on_step=False, on_epoch=True, sync_dist = True) 
 
     def configure_optimizers(self):
         optims = []

@@ -12,11 +12,13 @@ exp_params:
   batch_size: 256
   lr: 0.005
   weight_decay: 0.0
-  weights : "/home/mila/r/roger.creus-castanyer/modded-crafter/crafter/v0fln45v/checkpoints/epoch=170-step=90801.ckpt"
+  #weights : "/home/mila/r/roger.creus-castanyer/modded-crafter/crafter/v0fln45v/checkpoints/epoch=170-step=90801.ckpt"
+  weights: "/home/roger/Desktop/modded-crafter/src/checkpoints/epoch=99-step=1696500.ckpt"
   scheduler_gamma: 0.95
   manual_seed: 1265
   split : 0.9
-  trajectories: ['observations/env_9999','observations/env_10000','observations/env_10001','observations/env_10002','observations/env_10003','observations/env_10004','observations/env_10005','observations/env_10006','observations/env_10007','observations/env_10008']
+  #trajectories: ['observations/env_9999','observations/env_10000','observations/env_10001','observations/env_10002','observations/env_10003','observations/env_10004','observations/env_10005','observations/env_10006','observations/env_10007','observations/env_10008']
+  trajectories : ["observations/env_1", "observations/env_2", "observations/env_3"]
 
 trainer_params:
   max_epochs: 50

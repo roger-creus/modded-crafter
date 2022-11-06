@@ -25,7 +25,8 @@ parser.add_argument('--config',  '-c',
 
 args = parser.parse_args()
 
-with open("/home/mila/r/roger.creus-castanyer/modded-crafter/src/config/" + args.filename, 'r') as file:
+#with open("/home/mila/r/roger.creus-castanyer/modded-crafter/src/config/" + args.filename, 'r') as file:
+with open("/home/roger/Desktop/modded-crafter/src/config/" + args.filename, 'r') as file: 
     try:
         config = yaml.safe_load(file)
     except yaml.YAMLError as exc:

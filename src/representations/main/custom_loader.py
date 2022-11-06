@@ -7,9 +7,9 @@ from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 from random import shuffle
 from IPython import embed
+import torch.nn.functional as F
 
 from pathlib import Path
-
 
 class CustomCrafterData(Dataset):
     def __init__(self, traj_list, delay=False):
@@ -53,9 +53,9 @@ class CustomCrafterData(Dataset):
 
 
 class CustomCrafterData_SEMANTIC(Dataset):
-    def __init__(self, traj_list, delay=False, **kwargs) -> None:
+    def __init__(self, traj_list, path = "/network/scratch/r/roger.creus-castanyer/tmp/", delay=False, **kwargs) -> None:
         
-        self.path = Path("/network/scratch/r/roger.creus-castanyer/tmp/") 
+        self.path = Path(path) 
         self.traj_list = traj_list
         self.dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
         self.customLoad()
@@ -105,7 +105,14 @@ class CustomCrafterData_SEMANTIC(Dataset):
         # for RGB images only
         x = torch.div(x.unsqueeze(0).permute(0,3,1,2), 255)
         y = y.unsqueeze(0)
-        return x,y
+
+        img_label = y[:, 0:63]
+        img_label_one_hots =  F.one_hot(img_label.to(torch.int64), num_classes = 19)
+        
+        inventory_label = torch.clip(y[:, 63:], 0)
+        inventory_label_one_hots = F.one_hot(inventory_label.to(torch.int64), num_classes = 10)
+
+        return x, (img_label_one_hots, inventory_label_one_hots)
 
 
 class CustomCrafterData_CURL(Dataset):

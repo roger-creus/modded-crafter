@@ -26,9 +26,8 @@ def trainValSplit(traj_list, split):
         return traj_list[:int(split*num_traj)], traj_list[int(split*num_traj):]
 
 
-def get_train_val_split(t, split):
-    #path = Path('src/representations/trajectories/')
-    path = Path("/network/scratch/r/roger.creus-castanyer/tmp/")
+def get_train_val_split(t, split, path="/network/scratch/r/roger.creus-castanyer/tmp/"):
+    path = Path(path)
     all_trajectories = []
     for l in t:
         items = sorted(os.listdir(path / l), key=lambda x: int(x.split('.')[0].split('_')[2]))
@@ -117,7 +116,8 @@ def index_map(trajectories_positions, embeddings, enc):
 
 
 
-assets_path = "/home/mila/r/roger.creus-castanyer/modded-crafter/crafter/assets/"
+#assets_path = "/home/mila/r/roger.creus-castanyer/modded-crafter/crafter/assets/"
+assets_path = "/home/roger/Desktop/modded-crafter/crafter/assets/"
 map_semantic = {
     0 : "unknown.png",
     1 : "water.png",
@@ -159,15 +159,10 @@ def plot_local_mask(semantic):
     n_cols = 7
     fig, ax = plt.subplots(9,9)
 
-    semantic = np.around(semantic).astype(int)
     semantic = semantic.reshape(9,9)
 
     semantic_img = semantic[0:7, :]
-    semantic_img = np.clip(semantic_img, 0, 18)
-    
     inventory = np.transpose(semantic[7:9, :]).flatten()
-    inventory = np.clip(inventory, -1, 9)
-
     
     for i in range(n_rows):
         for j in range(n_cols):
