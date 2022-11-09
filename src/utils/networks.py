@@ -63,17 +63,23 @@ class Agent(nn.Module):
             print("TRAINING WITH VAE")
                     
         else:
-            self.network = nn.Sequential(
-                layer_init(nn.Conv2d(in_channels, hidden_channels, 4, stride=4)),
-                nn.ReLU(),
-                layer_init(nn.Conv2d(hidden_channels, hidden_channels * 2, 4, stride=2)),
-                nn.ReLU(),
-                layer_init(nn.Conv2d(hidden_channels * 2, hidden_channels * 2, 3, stride=1)),
-                nn.ReLU(),
-                nn.Flatten(),
-                layer_init(nn.Linear(hidden_channels * 2 * 5 * 5, 512)),
-                nn.ReLU(),
-            )
+            modules = []
+            hidden_dims = [32, 64, 128, 256, 512]
+            in_channels = 3
+            
+            # Build Encoder
+            for h_dim in hidden_dims:
+                modules.append(
+                    nn.Sequential(
+                        nn.Conv2d(in_channels, out_channels=h_dim, kernel_size= 3, stride= 2, padding  = 1),
+                        nn.BatchNorm2d(h_dim),
+                        nn.LeakyReLU())
+                )
+                in_channels = h_dim
+
+            self.network = nn.Sequential(*modules)
+            
+            self.fc = nn.Linear(hidden_dims[-1] * 2 * 2, 512)
 
             self.encoder_used = "vanilla"
 
@@ -94,7 +100,11 @@ class Agent(nn.Module):
             mu, log_var = self.network.encode(x)
             return self.network.reparameterize(mu, log_var)
             
-        return self.network(x)
+        x = self.network(x)
+        x = x.flatten(start_dim=1, end_dim= -1)
+        x = self.fc(x)
+        
+        return x
 
     def get_value(self, x):
         #x = x.squeeze(2)

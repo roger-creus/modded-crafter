@@ -118,7 +118,7 @@ if __name__ == "__main__":
     pretrained_curl = False
     pretrained_vae = False
     fine_tune = False
-    use_semantic = True
+    use_semantic = False
 
     # env setup
     envs = gym.vector.SyncVectorEnv(

@@ -1,7 +1,7 @@
 model_params:
   name: 'BetaVAE'
   in_channels: 3
-  latent_dim: 128
+  latent_dim: 512
   loss_type: 'B'
   gamma: 10.0
   max_capacity: 25

@@ -25,8 +25,7 @@ parser.add_argument('--config',  '-c',
 
 args = parser.parse_args()
 
-#with open("/home/mila/r/roger.creus-castanyer/modded-crafter/src/config/" + args.filename, 'r') as file:
-with open("/home/roger/Desktop/modded-crafter/src/config/" + args.filename, 'r') as file: 
+with open("/home/mila/r/roger.creus-castanyer/modded-crafter/src/config/" + args.filename, 'r') as file:
     try:
         config = yaml.safe_load(file)
     except yaml.YAMLError as exc:
@@ -70,7 +69,7 @@ runner = Trainer(logger=wandb_logger,
                  enable_checkpointing = True,
                  devices=1,
                  #default_root_dir = os.environ["SLURM_TMPDIR"] + "/tmp/checkpoints/",
-                 strategy=DDPPlugin(find_unused_parameters=False),
+                 strategy=DDPPlugin(find_unused_parameters=True),
                  **config['trainer_params'])
 
 print(f"======= Training {config['model_params']['name']} =======")

@@ -43,8 +43,7 @@ envs_num = args.envs_num
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 agent = Agent().to(device)
-#agent.load_state_dict(torch.load("/home/mila/r/roger.creus-castanyer/modded-crafter/src/checkpoints/ppo-14254080.pt"))
-agent.load_state_dict(torch.load("/home/roger/Desktop/modded-crafter/src/checkpoints/ppo-14254080.pt"))
+agent.load_state_dict(torch.load("/home/mila/r/roger.creus-castanyer/modded-crafter/src/checkpoints/ppo-14254080.pt"))
 
 os.makedirs(args.save_path + "/tmp/" + "observations/")
 os.makedirs(args.save_path + "/tmp/" + "semantics/")

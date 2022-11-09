@@ -252,14 +252,39 @@ class MultiHeads(nn.Module):
         
         for i in range(63):
             self.heads.append(
-                nn.Linear(128, 19)
+                nn.Sequential(
+                    nn.Linear(128, 256),
+                    nn.ReLU(),
+                    nn.Linear(256, 512),
+                    nn.ReLU(),
+                    nn.Linear(512, 512),
+                    nn.ReLU(),
+                    nn.Linear(512, 256),
+                    nn.ReLU(),
+                    nn.Linear(256, 128),
+                    nn.ReLU(),
+                    nn.Linear(128, 19)
+                )
             )
 
         for i in range(18):
             self.heads.append(
-                nn.Linear(128, 10)
+                nn.Sequential(
+                    nn.Linear(128, 256),
+                    nn.ReLU(),
+                    nn.Linear(256, 512),
+                    nn.ReLU(),
+                    nn.Linear(512, 512),
+                    nn.ReLU(),
+                    nn.Linear(512, 256),
+                    nn.ReLU(),
+                    nn.Linear(256, 128),
+                    nn.ReLU(),
+                    nn.Linear(128, 10)
+                )
             )
 
+        print("number of heads: ", len(self.heads))
 
     def forward(self, x):
         outs_img = []
@@ -270,7 +295,7 @@ class MultiHeads(nn.Module):
         for i in range(18):
             outs_inventory.append(self.heads[63+i](x))
 
-        return torch.stack(outs_img), torch.stack(outs_inventory)
+        return outs_img, outs_inventory
 
 class SemanticPredictorExperiment(pl.LightningModule):
 
@@ -293,23 +318,27 @@ class SemanticPredictorExperiment(pl.LightningModule):
         self.batch_size = self.params['batch_size']
         self.split = self.params['split']
         self.trajectories = self.params['trajectories']
-        self.trajectories_train, self.trajectories_val = get_train_val_split(self.trajectories, self.split, path = "/home/roger/Desktop/modded-crafter/src/representations/trajectories/tmp/")
+        self.trajectories_train, self.trajectories_val = get_train_val_split(self.trajectories, self.split)
 
         self.loss_fct_type = nn.CrossEntropyLoss()
         
+        
+        """
         self.predictor_shared = nn.Sequential(
             nn.Linear(128, 256),
             nn.ReLU(),
-            nn.Linear(256, 512),
+            nn.Linear(256,256),
             nn.ReLU(),
-            nn.Linear(512, 256),
-            nn.ReLU(),
-            nn.Linear(256, 128),
+            nn.Linear(256,128),
             nn.ReLU()
         )
+        """
 
         self.heads = MultiHeads()
-        
+
+        #self.training_params = list(self.predictor_shared.parameters()) + list(self.heads.parameters())
+        self.training_params = self.heads.parameters()
+
         self.hold_graph = False
         try:
             self.hold_graph = self.params['retain_first_backpass']
@@ -317,12 +346,12 @@ class SemanticPredictorExperiment(pl.LightningModule):
             pass
 
     def train_dataloader(self):
-        train_dataset = CustomCrafterData_SEMANTIC(self.trajectories_train, path = "/home/roger/Desktop/modded-crafter/src/representations/trajectories/tmp/")
+        train_dataset = CustomCrafterData_SEMANTIC(self.trajectories_train)
         train_dataloader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=0)
         return train_dataloader
 
     def val_dataloader(self):
-        val_dataset = CustomCrafterData_SEMANTIC(self.trajectories_val, path = "/home/roger/Desktop/modded-crafter/src/representations/trajectories/tmp/")
+        val_dataset = CustomCrafterData_SEMANTIC(self.trajectories_val)
         val_dataloader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False, num_workers=0)
         return val_dataloader
 
@@ -330,19 +359,29 @@ class SemanticPredictorExperiment(pl.LightningModule):
     def forward(self, input, **kwargs):
         mu, log_var = self.model.encode(input)
         z = self.model.reparameterize(mu, log_var)
-        x = self.predictor_shared(z)
-        p = self.heads(x)
+        #x = self.predictor_shared(z)
+        p = self.heads(z)
         return p
 
     def loss_fct(self, predictions, labels):
         labels_img = labels[0].squeeze(1)
         labels_inventory = labels[1].squeeze(1)
 
-        predictions_img = predictions[0].permute(1,0,2)
-        predictions_inventory = predictions[1].permute(1,0,2)
+        predictions_img = predictions[0]
+        predictions_inventory = predictions[1]
         
-        loss_img = self.loss_fct_type(predictions_img.float(), labels_img.float())
-        loss_inventory = self.loss_fct_type(predictions_inventory.float(), labels_inventory.float())
+        loss_img = 0
+        for pixel in range(63):
+            loss = self.loss_fct_type(predictions_img[pixel].float(), labels_img.float()[:, pixel, :])
+            loss_img += loss 
+
+        loss_inventory = 0
+        for item in range(18):
+            loss =  self.loss_fct_type(predictions_inventory[item].float(), labels_inventory.float()[:, item, :])
+            loss_inventory += loss
+        
+        #loss_img = self.loss_fct_type(predictions_img.float(), labels_img.float())
+        #loss_inventory = self.loss_fct_type(predictions_inventory.float(), labels_inventory.float())
         
         total_loss = loss_img + loss_inventory
 
@@ -386,11 +425,12 @@ class SemanticPredictorExperiment(pl.LightningModule):
 
         samples = self.model.decode(z)
         
-        x = self.predictor_shared(z)
-        p = self.heads(x)
+        #x = self.predictor_shared(z)
+        p = self.heads(z)
 
-        predicted_img = torch.argmax(p[0].squeeze(1), axis = -1).cpu().detach().numpy().astype(int)
-        predicted_inventory = torch.argmax(p[1].squeeze(1), axis = -1).cpu().detach().numpy().astype(int)
+
+        predicted_img = torch.argmax(torch.stack(p[0]).squeeze(1), axis = -1).cpu().detach().numpy().astype(int)
+        predicted_inventory = torch.argmax(torch.stack(p[1]).squeeze(1), axis = -1).cpu().detach().numpy().astype(int)
         predictions = np.concatenate([predicted_img, predicted_inventory])
         
         p = plot_local_mask(predictions) 
@@ -403,8 +443,8 @@ class SemanticPredictorExperiment(pl.LightningModule):
         recons = self.model.forward(inputs)[0]
         p = self.forward(inputs)
 
-        predicted_img = torch.argmax(p[0].squeeze(1), axis = -1).cpu().detach().numpy().astype(int)
-        predicted_inventory = torch.argmax(p[1].squeeze(1), axis = -1).cpu().detach().numpy().astype(int)
+        predicted_img = torch.argmax(torch.stack(p[0]).squeeze(1), axis = -1).cpu().detach().numpy().astype(int)
+        predicted_inventory = torch.argmax(torch.stack(p[1]).squeeze(1), axis = -1).cpu().detach().numpy().astype(int)
         predictions = np.concatenate([predicted_img, predicted_inventory])
 
         labels_img = torch.argmax(labels[0].squeeze(1)[0], axis = -1).cpu().detach().numpy().astype(int)
@@ -430,9 +470,13 @@ class SemanticPredictorExperiment(pl.LightningModule):
         optims = []
         scheds = []
 
-        optimizer = optim.Adam(self.model.parameters(),
+        # THE OPTIMIZER IS ON THE HEADS PARAMETERS (WAS IN self.model.parameters() BEFORE!!)
+        optimizer = optim.Adam(self.training_params,
                                lr=self.params['lr'],
                                weight_decay=self.params['weight_decay'])
+        
+        #optimizer = torch.optim.SGD(self.parameters(), lr=self.params['lr'], momentum=0.9, nesterov=True, weight_decay=self.params['weight_decay'])
+        
         optims.append(optimizer)
         # Check if more than 1 optimizer is required (Used for adversarial training)
         try:
