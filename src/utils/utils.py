@@ -73,7 +73,6 @@ def get_local_semantic(semantic, player_pos):
     
     local_semantic = semantic[(x - 4) + 20 : (x - 4) + 20 + n_rows, (y - 3) + 20 : (y - 3) + 20 + n_cols]
 
-
     return local_semantic
 
 def plot_local_mask(semantic):
