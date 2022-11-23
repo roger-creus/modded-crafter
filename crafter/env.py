@@ -31,7 +31,7 @@ class Env(BaseClass):
 
   def __init__(
       self, area=(64, 64), view=(9, 9), size=(64, 64),
-      reward=True, length=10000, seed=None, use_semantic = False):
+      reward=True, length=10000, seed=None):
     view = np.array(view if hasattr(view, '__len__') else (view, view))
     size = np.array(size if hasattr(size, '__len__') else (size, size))
     seed = np.random.randint(0, 2**31 - 1) if seed is None else seed
@@ -66,15 +66,9 @@ class Env(BaseClass):
     self._mat_ids = self._world._mat_ids.copy()
     self._obj_ids = {obj_types[i]: len(self._mat_ids) + i for i in range(len(obj_types))}
 
-    self.use_semantic = use_semantic
-
   @property
   def observation_space(self):
-    if not self.use_semantic:
-      return BoxSpace(0, 255, tuple(self._size) + (3,), np.uint8)
-    else:
-      # 7*9=63 for the image + 16 for the inventory
-      return BoxSpace(0, 1, (1,35,7,9), np.float64)
+    return BoxSpace(0, 255, tuple(self._size) + (3,), np.uint8)
 
   @property
   def action_space(self):
@@ -111,11 +105,7 @@ class Env(BaseClass):
       # set the player to the chosen positions. if it is not random, then its just the center of the map
       self._world.move(self._player, center)
 
-    if not self.use_semantic:
-      return self._obs()
-    else:
-      return self._semantic_view()
-    
+    return self._obs()
     #return None
 
   def step(self, action):
@@ -132,11 +122,7 @@ class Env(BaseClass):
         # if self._player.distance(center) < 4 * max(self._view):
         self._balance_chunk(chunk, objs)
     
-    
-    if not self.use_semantic:
-      obs = self._obs()
-    else:
-      obs = self._semantic_view()
+    obs = self._obs()
     
     reward = (self._player.health - self._last_health) / 10
     self._last_health = self._player.health

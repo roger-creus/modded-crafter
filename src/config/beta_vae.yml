@@ -6,7 +6,6 @@ model_params:
   gamma: 10.0
   max_capacity: 1
   Capacity_max_iter: 10000
-  use_semantic : False
 
 exp_params:
   batch_size: 64

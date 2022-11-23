@@ -58,7 +58,6 @@ class VAEXperiment(pl.LightningModule):
 
         results = self.forward(real_img)
         train_loss = self.model.loss_function(*results,
-                                              use_semantic = False,
                                               M_N = self.params['kld_weight'], #al_img.shape[0]/ self.num_train_imgs,
                                               optimizer_idx=optimizer_idx,
                                               batch_idx = batch_idx)
@@ -83,7 +82,6 @@ class VAEXperiment(pl.LightningModule):
 
         results = self.forward(real_img)
         val_loss = self.model.loss_function(*results,
-                                            use_semantic = False,
                                             M_N = 1.0, #real_img.shape[0]/ self.num_val_imgs,
                                             optimizer_idx = optimizer_idx,
                                             batch_idx = batch_idx)
@@ -171,16 +169,15 @@ class VAEXperiment_SEMANTIC(pl.LightningModule):
 
         results = self.forward(real_img, labels = labels)
         train_loss = self.model.loss_function(*results,
-                                              use_semantic = True,
                                               M_N = self.params['kld_weight'], #al_img.shape[0]/ self.num_train_imgs,
                                               optimizer_idx=optimizer_idx,
                                               batch_idx = batch_idx)
 
         if batch_idx % 2000 == 0:
-            self.model.sample(num_samples = 1, current_device = 0, logger = self.logger, use_semantic = True)
+            self.model.sample(num_samples = 1, current_device = 0, logger = self.logger)
             x = real_img[0, :, :, :].unsqueeze(0)
             y = labels[0, :].unsqueeze(0)
-            self.model.generate([x, y], logger = self.logger, use_semantic = True)
+            self.model.generate([x, y], logger = self.logger)
 
         self.log('total_loss/train_epoch', train_loss["loss"], on_step=False, on_epoch=True, sync_dist = True)
         self.log('recon_loss/train_epoch', train_loss["Reconstruction_Loss"], on_step=False, on_epoch=True, sync_dist = True)
@@ -198,7 +195,6 @@ class VAEXperiment_SEMANTIC(pl.LightningModule):
 
         results = self.forward(real_img, labels = labels)
         val_loss = self.model.loss_function(*results,
-                                            use_semantic = True,
                                             M_N = 1.0, #real_img.shape[0]/ self.num_val_imgs,
                                             optimizer_idx = optimizer_idx,
                                             batch_idx = batch_idx)

@@ -2,7 +2,14 @@ model_params:
   name: 'SemanticPredictorExperiment'
   in_channels: 3
   latent_dim: 128
+<<<<<<< HEAD
   use_semantic : False
+=======
+  loss_type: 'B'
+  gamma: 10.0
+  max_capacity: 25
+  Capacity_max_iter: 10000
+>>>>>>> 84dd89ec169348af8314237c2df77f16fff354e1
 
 
 exp_params:
