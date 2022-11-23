@@ -255,15 +255,11 @@ class MultiHeads(nn.Module):
                 nn.Sequential(
                     nn.Linear(128, 256),
                     nn.ReLU(),
-                    nn.Linear(256, 512),
-                    nn.ReLU(),
-                    nn.Linear(512, 512),
-                    nn.ReLU(),
-                    nn.Linear(512, 256),
+                    nn.Linear(256, 256),
                     nn.ReLU(),
                     nn.Linear(256, 128),
                     nn.ReLU(),
-                    nn.Linear(128, 19)
+                    nn.Linear(128, 19),
                 )
             )
 
@@ -272,11 +268,7 @@ class MultiHeads(nn.Module):
                 nn.Sequential(
                     nn.Linear(128, 256),
                     nn.ReLU(),
-                    nn.Linear(256, 512),
-                    nn.ReLU(),
-                    nn.Linear(512, 512),
-                    nn.ReLU(),
-                    nn.Linear(512, 256),
+                    nn.Linear(256, 256),
                     nn.ReLU(),
                     nn.Linear(256, 128),
                     nn.ReLU(),
@@ -323,7 +315,7 @@ class SemanticPredictorExperiment(pl.LightningModule):
         self.loss_fct_type = nn.CrossEntropyLoss()
         
         
-        """
+        
         self.predictor_shared = nn.Sequential(
             nn.Linear(128, 256),
             nn.ReLU(),
@@ -332,12 +324,11 @@ class SemanticPredictorExperiment(pl.LightningModule):
             nn.Linear(256,128),
             nn.ReLU()
         )
-        """
 
         self.heads = MultiHeads()
 
-        #self.training_params = list(self.predictor_shared.parameters()) + list(self.heads.parameters())
-        self.training_params = self.heads.parameters()
+        self.training_params = list(self.predictor_shared.parameters()) + list(self.heads.parameters())
+        #self.training_params = self.heads.parameters()
 
         self.hold_graph = False
         try:
@@ -359,7 +350,7 @@ class SemanticPredictorExperiment(pl.LightningModule):
     def forward(self, input, **kwargs):
         mu, log_var = self.model.encode(input)
         z = self.model.reparameterize(mu, log_var)
-        #x = self.predictor_shared(z)
+        z = self.predictor_shared(z)
         p = self.heads(z)
         return p
 
@@ -425,7 +416,7 @@ class SemanticPredictorExperiment(pl.LightningModule):
 
         samples = self.model.decode(z)
         
-        #x = self.predictor_shared(z)
+        z = self.predictor_shared(z)
         p = self.heads(z)
 
 

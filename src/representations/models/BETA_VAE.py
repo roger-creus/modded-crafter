@@ -37,6 +37,7 @@ class BetaVAE_PL(pl.LightningModule):
         modules = []
         if hidden_dims is None:
             hidden_dims = [32, 64, 128, 256, 512]
+            #hidden_dims = [64, 128, 256, 512, 1024]
 
         # Build Encoder
         for h_dim in hidden_dims:
@@ -45,7 +46,11 @@ class BetaVAE_PL(pl.LightningModule):
                     nn.Conv2d(in_channels, out_channels=h_dim,
                               kernel_size= 3, stride= 2, padding  = 1),
                     nn.BatchNorm2d(h_dim),
-                    nn.LeakyReLU())
+                    nn.LeakyReLU(),
+                    nn.Conv2d(h_dim, out_channels=h_dim,
+                              kernel_size= 3, stride= 1, padding  = 1),
+                    nn.BatchNorm2d(h_dim),
+                    nn.LeakyReLU()),
             )
             in_channels = h_dim
 
@@ -65,6 +70,10 @@ class BetaVAE_PL(pl.LightningModule):
         for i in range(len(hidden_dims) - 1):
             modules.append(
                 nn.Sequential(
+                    nn.Conv2d(hidden_dims[i], out_channels=hidden_dims[i],
+                              kernel_size= 3, stride= 1, padding  = 1),
+                    nn.BatchNorm2d(hidden_dims[i]),
+                    nn.LeakyReLU(),
                     nn.ConvTranspose2d(hidden_dims[i],
                                        hidden_dims[i + 1],
                                        kernel_size=3,

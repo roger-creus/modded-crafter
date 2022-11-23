@@ -6,6 +6,7 @@ from pathlib import Path
 from src.representations.models.VAE import VanillaVAE_PL
 from src.representations.models.BETA_VAE import BetaVAE_PL
 from src.representations.models.INFO_VAE import InfoVAE_PL
+from src.representations.models.MIWAE import MIWAE_PL
 from  src.representations.main.vae_experiment import VAEXperiment, VAEXperiment_SEMANTIC, SemanticPredictorExperiment
 import torch.backends.cudnn as cudnn
 from pytorch_lightning import Trainer
@@ -53,8 +54,10 @@ elif model_name == "VanillaVAE":
     model = VanillaVAE_PL(**config['model_params'])
 elif model_name == "InfoVAE":
     model = InfoVAE_PL(**config['model_params'])
+elif model_name == "MIWAE":
+    model = MIWAE_PL(**config['model_params'])
 elif model_name == "SemanticPredictorExperiment":
-    model = BetaVAE_PL(**config['model_params'])
+    model = VanillaVAE_PL(**config['model_params'])
 
 if not config['model_params']["use_semantic"]:
     if model_name != "SemanticPredictorExperiment":

@@ -1,7 +1,9 @@
 model_params:
-  name: 'VanillaVAE'
+  name: 'MIWAE'
   in_channels: 3
   latent_dim: 128
+  num_samples: 5
+  num_estimates: 3
   use_semantic : False
 
 exp_params:
@@ -9,7 +11,7 @@ exp_params:
   lr: 0.005
   weight_decay: 0.0
   scheduler_gamma: 0.95
-  kld_weight: 0.0000025
+  kld_weight: 0.00025
   manual_seed: 1265
   split : 0.9
   trajectories: ['observations/env_9999','observations/env_10000','observations/env_10001','observations/env_10002','observations/env_10003','observations/env_10004','observations/env_10005','observations/env_10006','observations/env_10007','observations/env_10008']

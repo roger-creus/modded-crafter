@@ -4,12 +4,12 @@ model_params:
   latent_dim: 512
   loss_type: 'B'
   gamma: 10.0
-  max_capacity: 25
+  max_capacity: 1
   Capacity_max_iter: 10000
   use_semantic : False
 
 exp_params:
-  batch_size: 2048
+  batch_size: 64
   lr: 0.005
   weight_decay: 0.0
   scheduler_gamma: 0.95
@@ -19,4 +19,4 @@ exp_params:
   trajectories: ['observations/env_9999','observations/env_10000','observations/env_10001','observations/env_10002','observations/env_10003','observations/env_10004','observations/env_10005','observations/env_10006','observations/env_10007','observations/env_10008']
 
 trainer_params:
-  max_epochs: 100
+  max_epochs: 200

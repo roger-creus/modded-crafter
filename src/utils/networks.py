@@ -60,14 +60,15 @@ class Agent(nn.Module):
 
         elif pretrained_vae == True:
             self.network = VanillaVAE_PL(latent_dim = z_dim)
-            self.network.load_state_dict(torch.load("/home/mila/r/roger.creus-castanyer/modded-crafter/crafter/9wbbe8c7/checkpoints/epoch=29-step=253410.ckpt")["state_dict"])
+            self.network.load_state_dict(torch.load("/home/mila/r/roger.creus-castanyer/modded-crafter/crafter/37mv5msc/checkpoints/epoch=99-step=1696500.ckpt")["state_dict"])
 
             for name, param in self.network.named_parameters():
                 if "decoder" in name or "final" in name:
                     param.requires_grad = False
                 else:
-                    param.requires_grad = True
-                    print("param that will be finetuned:", name)
+                    if fine_tune:
+                        param.requires_grad = True
+                        print("param that will be finetuned:", name)
 
             self.encoder_used = "vae"
 
