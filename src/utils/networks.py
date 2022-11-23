@@ -29,9 +29,18 @@ class Encoder(nn.Module):
 
 
 class Agent(nn.Module):
-    def __init__(self, pretrained_curl = False, pretrained_vae = False, fine_tune = False, num_actions = 17, in_channels = 1, z_dim = 512, hidden_channels = 32,conf = None):
+    def __init__(
+            self,
+            pretrained_curl = False,
+            pretrained_vae = False,
+            fine_tune = False,
+            num_actions = 17,
+            in_channels = 1,
+            z_dim = 512,
+            hidden_channels = 32,
+            conf = None
+        ):
         super().__init__()
-        
 
         self.dev = "cuda"
 
@@ -40,15 +49,17 @@ class Agent(nn.Module):
             self.network.load_state_dict(torch.load("/home/mila/r/roger.creus-castanyer/modded-crafter/crafter/2vl3hd9z/checkpoints/epoch=29-step=253410.ckpt")["state_dict"])
             self.network = self.network.encoder
 
-            for param in self.network.parameters():
-                param.requires_grad = True
+
+            if fine_tune:
+                for param in self.network.parameters():
+                    param.requires_grad = True
 
             self.encoder_used = "curl"
         
             print("TRAINING WITH CURL")
 
         elif pretrained_vae == True:
-            self.network = VanillaVAE_PL(latent_dim = 256)
+            self.network = VanillaVAE_PL(latent_dim = z_dim)
             self.network.load_state_dict(torch.load("/home/mila/r/roger.creus-castanyer/modded-crafter/crafter/9wbbe8c7/checkpoints/epoch=29-step=253410.ckpt")["state_dict"])
 
             for name, param in self.network.named_parameters():

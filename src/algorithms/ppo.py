@@ -78,12 +78,26 @@ def parse_args():
         help="the target KL divergence threshold")
     parser.add_argument("--eval-interval", type=int, default=1,
         help="every when to evaluate the agent")
+    parser.add_argument("--pretrained-curl", type=bool, default=False,
+        help="Wether to load a pretrained encoder with CURL")
+    parser.add_argument("--pretrained-vae", type=bool, default=False,
+        help="wether to load a pretrained encoder from VAE")
+    parser.add_argument("--fine-tune", type=bool, default=False,
+        help="wether to fine tune the pretrained encoder")
     parser.add_argument("--save-path", type=str, default="./checkpoints",
         help="path to save the agents")
     args = parser.parse_args()
     args.batch_size = int(args.num_envs * args.num_steps)
     args.minibatch_size = int(args.batch_size // args.num_minibatches)
-    # fmt: on
+
+    if args.pretrained_vae:
+        args.pretrained_curl = False
+    elif args.pretrained_curl:
+        args.pretrained_vae = False
+    elif not args.pretrained_curl and not args.pretrained_vae:
+        args.fine_tune = False
+
+
     return args
 
 
@@ -115,9 +129,9 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
 
     # CONFIG 
-    pretrained_curl = False
-    pretrained_vae = False
-    fine_tune = False
+    pretrained_curl = args.pretrained_curl
+    pretrained_vae = args.pretrained_vae
+    fine_tune = args.fine_tune
     use_semantic = False
 
     # env setup
