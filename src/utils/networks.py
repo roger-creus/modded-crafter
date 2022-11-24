@@ -9,24 +9,26 @@ from src.representations.models.VAE import *
 from src.representations.models.CURL import * 
 
 class Encoder(nn.Module):
-    def __init__(self, in_channels = 1, z_dim = 512, hidden_channels = 32, stride = 4):
+    def __init__(self, in_channels = 3):
         super().__init__()
         
-        self.network = nn.Sequential(
-            layer_init(nn.Conv2d(in_channels, hidden_channels, 4, stride=4)),
-            nn.ReLU(),
-            layer_init(nn.Conv2d(hidden_channels, hidden_channels * 2, 4, stride=2)),
-            nn.ReLU(),
-            layer_init(nn.Conv2d(hidden_channels * 2, hidden_channels * 2, 3, stride=1)),
-            nn.ReLU(),
-            nn.Flatten(),
-            layer_init(nn.Linear(hidden_channels * 2 * 5 * 5, z_dim)),
-            nn.ReLU(),
-        )
+        modules = []
+        self.hidden_dims = [32, 64, 128, 256, 512]
+        
+        # Build Encoder
+        for h_dim in self.hidden_dims:
+            modules.append(
+                nn.Sequential(
+                    nn.Conv2d(in_channels, out_channels=h_dim, kernel_size= 3, stride= 2, padding  = 1),
+                    nn.BatchNorm2d(h_dim),
+                    nn.LeakyReLU())
+            )
+            in_channels = h_dim
+
+        self.network = nn.Sequential(*modules)
 
     def forward(self, x):
         return self.network(x)
-
 
 class Agent(nn.Module):
     def __init__(
@@ -35,7 +37,7 @@ class Agent(nn.Module):
             pretrained_vae = False,
             fine_tune = False,
             num_actions = 17,
-            in_channels = 1,
+            in_channels = 3,
             z_dim = 512,
             hidden_channels = 32,
             conf = None
@@ -49,14 +51,13 @@ class Agent(nn.Module):
             self.network.load_state_dict(torch.load("/home/mila/r/roger.creus-castanyer/modded-crafter/crafter/2vl3hd9z/checkpoints/epoch=29-step=253410.ckpt")["state_dict"])
             self.network = self.network.encoder
 
-
             if fine_tune:
                 for param in self.network.parameters():
                     param.requires_grad = True
 
             self.encoder_used = "curl"
         
-            print("TRAINING WITH CURL")
+            print("----------Training with pretrained CURL----------")
 
         elif pretrained_vae == True:
             self.network = VanillaVAE_PL(latent_dim = z_dim)
@@ -71,31 +72,17 @@ class Agent(nn.Module):
 
             self.encoder_used = "vae"
 
-            print("TRAINING WITH VAE")
+            print("----------Training with pretrained VAE----------")
                     
         else:
-            modules = []
-            hidden_dims = [32, 64, 128, 256, 512]
-            in_channels = 3
-            
-            # Build Encoder
-            for h_dim in hidden_dims:
-                modules.append(
-                    nn.Sequential(
-                        nn.Conv2d(in_channels, out_channels=h_dim, kernel_size= 3, stride= 2, padding  = 1),
-                        nn.BatchNorm2d(h_dim),
-                        nn.LeakyReLU())
-                )
-                in_channels = h_dim
-
-            self.network = nn.Sequential(*modules)
-            
-            self.fc = nn.Linear(hidden_dims[-1] * 2 * 2, 512)
-
+            self.network = Encoder(in_channels)
+            self.fc = nn.Linear(self.network.hidden_dims[-1] * 2 * 2, z_dim)
             self.encoder_used = "vanilla"
 
-        self.actor = layer_init(nn.Linear(512, num_actions), std=0.01)
-        self.critic = layer_init(nn.Linear(512, 1), std=1)
+            print("----------Training end-to-end from scratch----------")
+
+        self.actor = layer_init(nn.Linear(z_dim, num_actions), std=0.01)
+        self.critic = layer_init(nn.Linear(z_dim, 1), std=1)
 
         if conf is not None:
             self.trajectories = conf["cnn"]["trajectories"]
@@ -114,7 +101,6 @@ class Agent(nn.Module):
         x = self.network(x)
         x = x.flatten(start_dim=1, end_dim= -1)
         x = self.fc(x)
-        
         return x
 
     def get_value(self, x):
@@ -140,13 +126,7 @@ class Agent(nn.Module):
             cosine = cos(z_a, c)
             if cosine.item() > max_sim:
                 label = i
-                max_sim = cosine.item()
-            i+=1
-        return label
-
-    def load_clusters(self):
-        clusters = []
-
+                max_sim = cosine.item()64
         for gs in sorted(os.listdir(self.path_clusters)):
             if 'npy' in gs:
                 clusters.append(np.load(os.path.join(self.path_clusters, gs)))
@@ -163,49 +143,36 @@ class Agent(nn.Module):
         construct_map(self)
 
 
-class Agent_MLP(nn.Module):
-    def __init__(self, hidden_channels = 32):
-        super().__init__()
-
-        self.relu = nn.ReLU()
-        self.conv1 = layer_init(nn.Conv2d(35, hidden_channels, 3, stride=1))
-        self.conv2 = layer_init(nn.Conv2d(hidden_channels, hidden_channels * 2, 3, stride=1))
-        self.conv3 = layer_init(nn.Conv2d(hidden_channels * 2, hidden_channels * 2, 3, stride=1))
-        self.fc = layer_init(nn.Linear(hidden_channels * 2 * 1 * 3, 128))
-
-        self.critic = nn.Sequential(
-            layer_init(nn.Linear(128, 128)),
-            nn.Tanh(),
-            layer_init(nn.Linear(128, 64)),
-            nn.Tanh(),
-            layer_init(nn.Linear(64, 1), std=1.0),
-        )
-        self.actor = nn.Sequential(
-            layer_init(nn.Linear(128 , 128)),
-            nn.Tanh(),
-            layer_init(nn.Linear(128, 64)),
-            nn.Tanh(),
-            layer_init(nn.Linear(64, 17), std=0.01)
+class IntrinsicCuriosityModule(nn.Module):
+    def __init__(self, in_channels=3, h_dim=1024, num_actions):
+        super(IntrinsicCuriosityModule, self).__init__()
+        self.conv = Encoder(in_channels)
+        self.feature_size = self.conv.hidden_dims[-1] * 2 * 2
+        
+        self.inverse_net = nn.Sequential(
+            nn.Linear(self.feature_size * 2, h_dim),
+            nn.LeakyReLU(),
+            nn.Linear(h_dim, num_actions)
         )
 
-    def encode(self, x):
-        x = self.relu(self.conv1(x))
-        x = self.relu(self.conv2(x))
-        x = self.relu(self.conv3(x))
-        x = torch.flatten(x, start_dim = 1)
-        x = self.fc(x)
-        return self.relu(x)
+        self.forward_net = nn.Sequential(
+            nn.Linear(self.feature_size + num_actions, h_dim),
+            nn.LeakyReLU(),
+            nn.Linear(h_dim, self.feature_size)
+        )
 
-    def get_value(self, x):
-        x = x.squeeze(1)
-        x = self.encode(x)
-        return self.critic(x)
+        self._initialize_weights()
 
-    def get_action_and_value(self, x, action=None):
-        x = x.squeeze(1)
-        x = self.encode(x)
-        logits = self.actor(x)
-        probs = Categorical(logits=logits)
-        if action is None:
-            action = probs.sample()
-        return action, probs.log_prob(action), probs.entropy(), self.critic(x)
+    def _initialize_weights(self):
+        for module in self.modules():
+            if isinstance(module, nn.Conv2d) or isinstance(module, nn.Linear):
+                nn.init.xavier_uniform_(module.weight)
+                nn.init.constant_(module.bias, 0)
+
+    def forward(self, state, next_state, action):
+        state_ft = self.conv(state)
+        next_state_ft = self.conv(next_state)
+        state_ft = state_ft.view(-1, self.feature_size)
+        next_state_ft = next_state_ft.view(-1, self.feature_size)
+        return self.inverse_net(torch.cat((state_ft, next_state_ft), 1)), self.forward_net(
+            torch.cat((state_ft, action), 1)), next_state_ft

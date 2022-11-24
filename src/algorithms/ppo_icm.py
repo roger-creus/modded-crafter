@@ -20,7 +20,6 @@ from utils.networks import *
 
 os.environ["WANDB_API_KEY"] = "e352fb7178eccaebef862095e4789238001ffbaf"
 
-
 def parse_args():
     # fmt: off
     parser = argparse.ArgumentParser()
@@ -99,7 +98,6 @@ def parse_args():
 
     return args
 
-
 if __name__ == "__main__":
     args = parse_args()
 
@@ -139,6 +137,13 @@ if __name__ == "__main__":
     assert isinstance(envs.single_action_space, gym.spaces.Discrete), "only discrete action space is supported"
 
     agent = Agent(pretrained_curl = pretrained_curl, pretrained_vae = pretrained_vae, fine_tune = fine_tune, z_dim = ).to(device)
+    
+    num_actions = envs.single_action_space.shape[0]
+
+    # Inverse curiosity module
+    icm = IntrinsicCuriosityModule(num_actions = num_actions).to(device)
+    inv_criterion = nn.CrossEntropyLoss()
+    fwd_criterion = nn.MSELoss()
 
     optimizer = optim.Adam(agent.parameters(), lr=args.learning_rate, eps=1e-5)
 
@@ -178,12 +183,27 @@ if __name__ == "__main__":
             with torch.no_grad():
                 action, logprob, _, value = agent.get_action_and_value(next_obs)
                 values[step] = value.flatten()
+            
             actions[step] = action
             logprobs[step] = logprob
 
             # TRY NOT TO MODIFY: execute the game and log data.
             next_obs, reward, done, info = envs.step(action.cpu().numpy())
             rewards[step] = torch.tensor(reward).to(device).view(-1)
+
+            # for ICM
+            action_oh = torch.zeros((1, num_actions)).to(device)  # one-hot action
+            action_oh[0, action] = 1
+            
+
+            # ICM forward
+            pred_logits, pred_phi, phi = icm(state, next_state, action_oh)
+    
+            
+            # ICM losses
+            inv_loss = inv_criterion(pred_logits, torch.tensor([action]).cuda())
+            fwd_loss = fwd_criterion(pred_phi, phi) / 2
+
             next_obs, next_done = torch.Tensor(next_obs).to(device), torch.Tensor(done).to(device)
 
             for item in info:
