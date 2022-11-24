@@ -164,6 +164,7 @@ if __name__ == "__main__":
     values = torch.zeros((args.num_steps, args.num_envs)).to(device)
     
     # FOR ICM
+    actions_oh = torch.zeros((args.num_steps, args.num_envs, 1, num_actions)).to(device)
     inv_losses = torch.zeros(args.num_steps).to(device)
     fwd_losses = torch.zeros(args.num_steps).to(device)
 
@@ -206,15 +207,15 @@ if __name__ == "__main__":
             next_obs, next_done = torch.Tensor(next_obs).to(device), torch.Tensor(done).to(device)
 
             # for ICM
-            action_oh = torch.zeros((args.num_envs, 1, num_actions)).to(device)  # one-hot action
+            actions_oh[step] = torch.zeros((args.num_envs, 1, num_actions)).to(device) # one-hot action
             for a in range(args.num_envs):
-                action_oh[a, 0, action[a]] = 1
+                actions_oh[step, a, 0, action[a]] = 1
             
             # ICM forward
-            pred_logits, pred_phi, phi = icm(obs[step], next_obs, action_oh)
+            pred_logits, pred_phi, phi = icm(obs[step], next_obs, actions_oh[step])
             
             # ICM losses
-            inv_loss = inv_criterion(pred_logits, action_oh.squeeze(1))
+            inv_loss = inv_criterion(pred_logits, actions_oh[step].squeeze(1))
             fwd_loss = torch.mean(fwd_criterion(pred_phi, phi) / 2, 1)
 
             # Total reward
