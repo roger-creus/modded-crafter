@@ -56,13 +56,10 @@ elif model_name == "InfoVAE":
 elif model_name == "SemanticPredictorExperiment":
     model = BetaVAE_PL(**config['model_params'])
 
-if not config['model_params']["use_semantic"]:
-    if model_name != "SemanticPredictorExperiment":
-        experiment = VAEXperiment(model, config['exp_params'])
-    else:
-        experiment = SemanticPredictorExperiment(model, config['exp_params'])
+if model_name != "SemanticPredictorExperiment":
+    experiment = VAEXperiment(model, config['exp_params'])
 else:
-    experiment = VAEXperiment_SEMANTIC(model, config['exp_params'])
+    experiment = SemanticPredictorExperiment(model, config['exp_params'])
 
 runner = Trainer(logger=wandb_logger,
                  accelerator='gpu',

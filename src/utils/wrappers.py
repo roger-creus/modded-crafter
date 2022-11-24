@@ -96,10 +96,6 @@ class WarpFramePyTorch(gym.ObservationWrapper):
             frame = np.transpose(frame, (2, 0, 1))
             return frame
 
-def make_semantic_crafter():
-    env = Env(use_semantic = True)
-    return env
-    
 
 def make_crafter(env_id, seed = 1, scale=False, gray_scale=False, frame_stack = 1, image_size=64, capture_video = False):
     env = gym.make(env_id)
@@ -122,21 +118,13 @@ def make_crafter(env_id, seed = 1, scale=False, gray_scale=False, frame_stack = 
     )
     return env
 
-def make_env(env_id, seed, idx, capture_video, run_name, use_semantic = False):
+def make_env(env_id, seed, idx, capture_video, run_name,):
     def thunk():
-        if not use_semantic:
-            env = make_crafter(env_id=env_id, seed=seed, scale=True, gray_scale=False, frame_stack = 1, image_size=64, capture_video = capture_video)
-            env = gym.wrappers.RecordEpisodeStatistics(env)
-            env.seed(seed)
-            env.action_space.seed(seed)
-            env.observation_space.seed(seed)
-            return env
-        else:
-            env = make_semantic_crafter()
-            env = gym.wrappers.RecordEpisodeStatistics(env)
-            env.seed(seed)
-            env.action_space.seed(seed)
-            env.observation_space.seed(seed)
-            return env
-            
+        env = make_crafter(env_id=env_id, seed=seed, scale=True, gray_scale=False, frame_stack = 1, image_size=64, capture_video = capture_video)
+        env = gym.wrappers.RecordEpisodeStatistics(env)
+        env.seed(seed)
+        env.action_space.seed(seed)
+        env.observation_space.seed(seed)
+        return env
+       
     return thunk

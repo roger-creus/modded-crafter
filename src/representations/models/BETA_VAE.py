@@ -21,7 +21,6 @@ class BetaVAE_PL(pl.LightningModule):
                  max_capacity: int = 25,
                  Capacity_max_iter: int = 1e4,
                  loss_type:str = 'B',
-                 use_semantic = False,
                  **kwargs) -> None:
         super(BetaVAE_PL, self).__init__()
 
@@ -32,7 +31,6 @@ class BetaVAE_PL(pl.LightningModule):
         self.loss_type = loss_type
         self.C_max = torch.Tensor([max_capacity])
         self.C_stop_iter = Capacity_max_iter
-        self.use_semantic = use_semantic
 
         modules = []
         if hidden_dims is None:
@@ -148,11 +146,7 @@ class BetaVAE_PL(pl.LightningModule):
         log_var = args[3]
         kld_weight = kwargs['M_N']  # Account for the minibatch samples from the dataset
 
-        if not kwargs["use_semantic"]:
-            recons_loss = F.mse_loss(recons, input)
-        else:
-            recons_loss = F.mse_loss(recons, input)
-            print("Reconstruction loss:", recons_loss)
+        recons_loss = F.mse_loss(recons, input)
 
         kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)
 
@@ -169,7 +163,7 @@ class BetaVAE_PL(pl.LightningModule):
 
     def sample(self,
                num_samples:int,
-               current_device: int, logger = None, use_semantic = False):
+               current_device: int, logger = None):
         """
         Samples from the latent space and return the corresponding
         image space map.
@@ -182,22 +176,18 @@ class BetaVAE_PL(pl.LightningModule):
         samples = self.decode(z)
 
         if logger is not None:
-            if not use_semantic:
-                fig, axs = plt.subplots(1, num_samples, sharey=True, figsize=(18, 2))
+            fig, axs = plt.subplots(1, num_samples, sharey=True, figsize=(18, 2))
 
-                for s in range(num_samples):
-                    axs[s].imshow(samples[s,:,:,:].permute(1,2,0).cpu().detach().numpy(), interpolation='nearest')
-                    axs[s].axis('off')
-                
-                logger.experiment.log({'VAE samples': fig})
-                plt.close(fig)
-            else:
-                sample = plot_local_mask(samples[0,:].squeeze(0).cpu().detach().numpy(), mode = "sample:") 
-                logger.experiment.log({'VAE samples': wandb.Image(sample)})
+            for s in range(num_samples):
+                axs[s].imshow(samples[s,:,:,:].permute(1,2,0).cpu().detach().numpy(), interpolation='nearest')
+                axs[s].axis('off')
+            
+            logger.experiment.log({'VAE samples': fig})
+            plt.close(fig)
 
         return samples
 
-    def generate(self, data, logger = None, use_semantic = False):
+    def generate(self, data, logger = None):
         """
         Given an input image x, returns the reconstructed image
         :param x: (Tensor) [B x C x H x W]
@@ -205,33 +195,20 @@ class BetaVAE_PL(pl.LightningModule):
         """
         
         if logger is not None:
+            recons = self.forward(data)[0]
+            num_examples = data.size(0)
 
-            if not use_semantic:
-                recons = self.forward(data)[0]
-                num_examples = data.size(0)
+            fig, axs = plt.subplots(2, num_examples, figsize=(18, 4))
 
-                fig, axs = plt.subplots(2, num_examples, figsize=(18, 4))
-
-                for s in range(num_examples):
-                    axs[0,s].imshow(data[s,:,:,:].permute(1,2,0).cpu().detach().numpy(), interpolation='nearest')
-                    axs[1,s].imshow(recons[s,:,:,:].permute(1,2,0).cpu().detach().numpy(), interpolation='nearest')
-                    
-                    axs[0,s].axis('off')
-                    axs[1,s].axis('off')
-
-                logger.experiment.log({'VAE reconstructions': wandb.Image(fig)})
-            
-            else:
-                x, y = data[0], data[1]
-                recons = self.forward(x)[0]
-                num_examples = 1    
-
-                y = plot_local_mask(y[0,:].squeeze(0).cpu().detach().numpy(), mode = "ground truth:")
-                recons = plot_local_mask(recons[0,:].squeeze(0).cpu().detach().numpy(), mode = "reconstruction:")
+            for s in range(num_examples):
+                axs[0,s].imshow(data[s,:,:,:].permute(1,2,0).cpu().detach().numpy(), interpolation='nearest')
+                axs[1,s].imshow(recons[s,:,:,:].permute(1,2,0).cpu().detach().numpy(), interpolation='nearest')
                 
-                logger.experiment.log({'True semantic': wandb.Image(y)})
-                logger.experiment.log({'VAE reconstruction': wandb.Image(recons)})
+                axs[0,s].axis('off')
+                axs[1,s].axis('off')
 
+            logger.experiment.log({'VAE reconstructions': wandb.Image(fig)})
+        
         return recons
 
 

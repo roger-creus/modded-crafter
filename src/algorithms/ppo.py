@@ -141,7 +141,7 @@ if __name__ == "__main__":
     assert isinstance(envs.single_action_space, gym.spaces.Discrete), "only discrete action space is supported"
 
     if not use_semantic:
-        agent = Agent(pretrained_curl = pretrained_curl, pretrained_vae = pretrained_vae, fine_tune = fine_tune).to(device)
+        agent = Agent(pretrained_curl = pretrained_curl, pretrained_vae = pretrained_vae, fine_tune = fine_tune, z_dim = ).to(device)
     else:
         agent = Agent_MLP().to(device)
     
