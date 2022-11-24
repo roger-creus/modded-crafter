@@ -2,7 +2,6 @@ model_params:
   name: 'VanillaVAE'
   in_channels: 3
   latent_dim: 128
-  use_semantic : False
 
 exp_params:
   batch_size: 64

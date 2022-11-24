@@ -131,19 +131,15 @@ if __name__ == "__main__":
     pretrained_curl = args.pretrained_curl
     pretrained_vae = args.pretrained_vae
     fine_tune = args.fine_tune
-    use_semantic = False
 
     # env setup
     envs = gym.vector.SyncVectorEnv(
-        [make_env(args.env_id, args.seed + i, i, args.capture_video, run_name, use_semantic = use_semantic) for i in range(args.num_envs)]
+        [make_env(args.env_id, args.seed + i, i, args.capture_video, run_name) for i in range(args.num_envs)]
     )
     assert isinstance(envs.single_action_space, gym.spaces.Discrete), "only discrete action space is supported"
 
-    if not use_semantic:
-        agent = Agent(pretrained_curl = pretrained_curl, pretrained_vae = pretrained_vae, fine_tune = fine_tune, z_dim = ).to(device)
-    else:
-        agent = Agent_MLP().to(device)
-    
+    agent = Agent(pretrained_curl = pretrained_curl, pretrained_vae = pretrained_vae, fine_tune = fine_tune, z_dim = ).to(device)
+
     optimizer = optim.Adam(agent.parameters(), lr=args.learning_rate, eps=1e-5)
 
     # ALGO Logic: Storage setup
@@ -163,7 +159,7 @@ if __name__ == "__main__":
 
     best_eval_reward = -999
     test_env = gym.vector.SyncVectorEnv(
-        [make_env(args.env_id, np.random.randint(10000), 999, args.capture_video, run_name, use_semantic=use_semantic) for i in range(1)]
+        [make_env(args.env_id, np.random.randint(10000), 999, args.capture_video, run_name) for i in range(1)]
     )
 
     for update in range(1, num_updates + 1):

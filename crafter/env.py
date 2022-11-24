@@ -124,10 +124,7 @@ class Env(BaseClass):
         self._balance_chunk(chunk, objs)
     
     
-    if not self.use_semantic:
-      obs = self._obs()
-    else:
-      obs = self._semantic_view()
+    obs = self._obs()
     
     reward = (self._player.health - self._last_health) / 10
     self._last_health = self._player.health
