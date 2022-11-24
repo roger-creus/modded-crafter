@@ -8,6 +8,8 @@ from src.utils.utils import *
 from src.representations.models.VAE import * 
 from src.representations.models.CURL import * 
 
+from IPython import embed
+
 class Encoder(nn.Module):
     def __init__(self, in_channels = 3):
         super().__init__()
@@ -126,7 +128,7 @@ class Agent(nn.Module):
             cosine = cos(z_a, c)
             if cosine.item() > max_sim:
                 label = i
-                max_sim = cosine.item()64
+                max_sim = cosine.item()
         for gs in sorted(os.listdir(self.path_clusters)):
             if 'npy' in gs:
                 clusters.append(np.load(os.path.join(self.path_clusters, gs)))
@@ -144,11 +146,22 @@ class Agent(nn.Module):
 
 
 class IntrinsicCuriosityModule(nn.Module):
-    def __init__(self, in_channels=3, h_dim=1024, num_actions):
+    def __init__(self, num_actions, feature_size = 128, in_channels=3, h_dim=1024):
         super(IntrinsicCuriosityModule, self).__init__()
         self.conv = Encoder(in_channels)
-        self.feature_size = self.conv.hidden_dims[-1] * 2 * 2
-        
+        self.conv_out_size = self.conv.hidden_dims[-1] * 2 * 2
+        self.feature_size = feature_size
+
+        self.fc = nn.Sequential(
+            nn.Linear(self.conv_out_size, 1024),
+            nn.ReLU(),
+            nn.Linear(1024, 512),
+            nn.ReLU(),
+            nn.Linear(512, 256),
+            nn.ReLU(),
+            nn.Linear(256, self.feature_size)
+        )
+
         self.inverse_net = nn.Sequential(
             nn.Linear(self.feature_size * 2, h_dim),
             nn.LeakyReLU(),
@@ -171,8 +184,12 @@ class IntrinsicCuriosityModule(nn.Module):
 
     def forward(self, state, next_state, action):
         state_ft = self.conv(state)
+        state_ft = state_ft.view(-1, self.conv_out_size)
+        state_ft = self.fc(state_ft)
+
         next_state_ft = self.conv(next_state)
-        state_ft = state_ft.view(-1, self.feature_size)
-        next_state_ft = next_state_ft.view(-1, self.feature_size)
+        next_state_ft = next_state_ft.view(-1, self.conv_out_size)
+        next_state_ft = self.fc(next_state_ft)
+
         return self.inverse_net(torch.cat((state_ft, next_state_ft), 1)), self.forward_net(
-            torch.cat((state_ft, action), 1)), next_state_ft
+            torch.cat((state_ft, action.squeeze(1)), 1)), next_state_ft

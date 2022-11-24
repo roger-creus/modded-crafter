@@ -47,6 +47,8 @@ def parse_args():
         help="total timesteps of the experiments")
     parser.add_argument("--learning-rate", type=float, default=2.5e-4,
         help="the learning rate of the optimizer")
+    parser.add_argument("--icm-learning-rate", type=float, default=2.5e-4,
+        help="the learning rate of the ICM optimizer")
     parser.add_argument("--num-envs", type=int, default=8,
         help="the number of parallel game environments")
     parser.add_argument("--num-steps", type=int, default=128,
@@ -83,6 +85,10 @@ def parse_args():
         help="wether to load a pretrained encoder from VAE")
     parser.add_argument("--fine-tune", type=bool, default=False,
         help="wether to fine tune the pretrained encoder")
+    parser.add_argument("--curiosity-coef", type=float, default=0.2,
+        help="how strong is the curiosity signal for learning")   
+    parser.add_argument("--curiosity-beta", type=float, default=0.2,
+        help="controls wether inv or fwd loss of ICM matters more")   
     parser.add_argument("--save-path", type=str, default="./checkpoints",
         help="path to save the agents")
     args = parser.parse_args()
@@ -136,16 +142,18 @@ if __name__ == "__main__":
     )
     assert isinstance(envs.single_action_space, gym.spaces.Discrete), "only discrete action space is supported"
 
-    agent = Agent(pretrained_curl = pretrained_curl, pretrained_vae = pretrained_vae, fine_tune = fine_tune, z_dim = ).to(device)
+    agent = Agent(pretrained_curl = pretrained_curl, pretrained_vae = pretrained_vae, fine_tune = fine_tune, z_dim = 512).to(device)
     
-    num_actions = envs.single_action_space.shape[0]
+    num_actions = envs.single_action_space.n
 
     # Inverse curiosity module
     icm = IntrinsicCuriosityModule(num_actions = num_actions).to(device)
     inv_criterion = nn.CrossEntropyLoss()
-    fwd_criterion = nn.MSELoss()
+    fwd_criterion = nn.MSELoss(reduction="none")
 
     optimizer = optim.Adam(agent.parameters(), lr=args.learning_rate, eps=1e-5)
+
+    optimizer_icm = optim.Adam(icm.parameters(), lr=args.icm_learning_rate, eps=1e-5)
 
     # ALGO Logic: Storage setup
     obs = torch.zeros((args.num_steps, args.num_envs) + envs.single_observation_space.shape).to(device)
@@ -154,6 +162,10 @@ if __name__ == "__main__":
     rewards = torch.zeros((args.num_steps, args.num_envs)).to(device)
     dones = torch.zeros((args.num_steps, args.num_envs)).to(device)
     values = torch.zeros((args.num_steps, args.num_envs)).to(device)
+    
+    # FOR ICM
+    inv_losses = torch.zeros(args.num_steps).to(device)
+    fwd_losses = torch.zeros(args.num_steps).to(device)
 
     # TRY NOT TO MODIFY: start the game
     global_step = 0
@@ -189,22 +201,30 @@ if __name__ == "__main__":
 
             # TRY NOT TO MODIFY: execute the game and log data.
             next_obs, reward, done, info = envs.step(action.cpu().numpy())
-            rewards[step] = torch.tensor(reward).to(device).view(-1)
-
-            # for ICM
-            action_oh = torch.zeros((1, num_actions)).to(device)  # one-hot action
-            action_oh[0, action] = 1
-            
-
-            # ICM forward
-            pred_logits, pred_phi, phi = icm(state, next_state, action_oh)
-    
-            
-            # ICM losses
-            inv_loss = inv_criterion(pred_logits, torch.tensor([action]).cuda())
-            fwd_loss = fwd_criterion(pred_phi, phi) / 2
+            total_reward = reward
 
             next_obs, next_done = torch.Tensor(next_obs).to(device), torch.Tensor(done).to(device)
+
+            # for ICM
+            action_oh = torch.zeros((args.num_envs, 1, num_actions)).to(device)  # one-hot action
+            for a in range(args.num_envs):
+                action_oh[a, 0, action[a]] = 1
+            
+            # ICM forward
+            pred_logits, pred_phi, phi = icm(obs[step], next_obs, action_oh)
+            
+            # ICM losses
+            inv_loss = inv_criterion(pred_logits, action_oh.squeeze(1))
+            fwd_loss = torch.mean(fwd_criterion(pred_phi, phi) / 2, 1)
+
+            # Total reward
+            intrinsic_reward = fwd_loss.detach().cpu().numpy()
+            total_reward += args.curiosity_coef * intrinsic_reward
+            rewards[step] = torch.tensor(total_reward).to(device).view(-1)
+
+            # recording the ICM losses to train the ICM model
+            inv_losses[step] = inv_loss
+            fwd_losses[step] = torch.mean(fwd_loss)
 
             for item in info:
                 if "episode" in item.keys():
@@ -240,6 +260,8 @@ if __name__ == "__main__":
         b_advantages = advantages.reshape(-1)
         b_returns = returns.reshape(-1)
         b_values = values.reshape(-1)
+
+        embed()
 
         # Optimizing the policy and value network
         b_inds = np.arange(args.batch_size)
@@ -296,6 +318,16 @@ if __name__ == "__main__":
                 if approx_kl > args.target_kl:
                     break
 
+        
+        # training ICM
+        all_inv_loss = torch.sum(inv_losses)
+        all_fwd_loss = torch.sum(fwd_losses)
+        curiosity_loss = (1 - args.curiosity_beta) * all_inv_loss +  (args.curiosity_beta) * all_fwd_loss
+        
+        optimizer_icm.zero_grad()
+        curiosity_loss.backward()
+        optimizer_icm.step()
+
         y_pred, y_true = b_values.cpu().numpy(), b_returns.cpu().numpy()
         var_y = np.var(y_true)
         explained_var = np.nan if var_y == 0 else 1 - np.var(y_true - y_pred) / var_y
@@ -310,6 +342,9 @@ if __name__ == "__main__":
             "losses/approx_kl": approx_kl.item(),
             "losses/clipfrac": np.mean(clipfracs),
             "losses/explained_variance": explained_var,
+            "icm_losses/total_loss": curiosity_loss.item(),
+            "icm_losses/inv_loss": all_inv_loss.item(),
+            "icm_losses/fwd_loss": all_fwd_loss.item(),
             "charts/SPS": int(global_step / (time.time() - start_time))
         }, global_step)
 
