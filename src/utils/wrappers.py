@@ -97,12 +97,10 @@ class WarpFramePyTorch(gym.ObservationWrapper):
             return frame
 
 
-def make_crafter(env_id, seed = 1, scale=False, gray_scale=False, frame_stack = 1, image_size=64, capture_video = False):
+def make_crafter(env_id, scale=False, gray_scale=False, frame_stack = 1, image_size=64, capture_video = False):
     env = gym.make(env_id)
     
     env = WarpFramePyTorch(env, gray_scale, image_size)
-    
-    #env = MaxAndSkipEnv(env, skip=4)
     
     if frame_stack > 1:
         env = gym.wrappers.FrameStack(env, frame_stack)
@@ -112,15 +110,15 @@ def make_crafter(env_id, seed = 1, scale=False, gray_scale=False, frame_stack = 
 
     env = crafter.Recorder(
         env, './crafter_logs',
-        save_stats=True,
+        save_stats=False,
         save_video=capture_video,
         save_episode=False,
     )
     return env
 
-def make_env(env_id, seed, idx, capture_video, run_name,):
+def make_env(env_id, seed, capture_video):
     def thunk():
-        env = make_crafter(env_id=env_id, seed=seed, scale=True, gray_scale=False, frame_stack = 1, image_size=64, capture_video = capture_video)
+        env = make_crafter(env_id=env_id, scale=True, gray_scale=False, frame_stack = 1, image_size=64, capture_video = capture_video)
         env = gym.wrappers.RecordEpisodeStatistics(env)
         env.seed(seed)
         env.action_space.seed(seed)

@@ -17,11 +17,11 @@ from utils.networks import *
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 env = gym.vector.SyncVectorEnv(
-        [make_env("CrafterReward-v1", np.random.randint(100), 999, True, "eval_crafter") for i in range(1)]
+        [make_env("CrafterReward-v1", np.random.randint(100), True) for i in range(1)]
     )
 
 agent = Agent(env).to(device)
-#agent.load_state_dict(torch.load("/home/roger/Desktop/solving-crafter/src/checkpoints/ppo-14254080.pt"))
+agent.load_state_dict(torch.load("/home/roger/Desktop/modded-crafter/src/checkpoints/ppo-14254080.pt"))
 
 obs = env.reset()
 done = False
