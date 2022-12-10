@@ -56,14 +56,15 @@ class SEQ_VAEXperiment(pl.LightningModule):
         loss_kl, loss_img = self.model.calculate_loss(state_, action_)
 
         # evalutation (reconstructions)
-        if batch_idx % 10 == 0:
-            state_plot_, action_plot_ = batch[0].unsqueeze(0)
+        if batch_idx % 2000 == 0:
+            state_plot_, action_plot_ = batch
+            state_plot_, action_plot_ = state_plot_[0].unsqueeze(0), action_plot_[0].unsqueeze(0)
             self.model.evaluate_reconstruction(state_plot_, action_plot_, logger = self.logger)
 
         self.log('kl_loss/train_epoch', loss_kl, on_step=False, on_epoch=True, sync_dist = True)
         self.log('recon_loss/train_epoch', loss_img, on_step=False, on_epoch=True, sync_dist = True)
 
-        return loss_img + loss_kl
+        return loss_img + (self.params["kl_weight"] * loss_kl)
 
     def validation_step(self, batch, batch_idx, optimizer_idx = 0):
         state_, action_ = batch

@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 from IPython import embed
+import wandb
 
 def build_mlp(input_dim, output_dim, hidden_units=[64, 64], hidden_activation=nn.Tanh(), output_activation=None):
     layers = []
@@ -76,6 +77,7 @@ class Decoder(pl.LightningModule):
     def __init__(self, input_dim=288, output_dim=3, std=1.0):
         super(Decoder, self).__init__()
 
+        
         self.net = nn.Sequential(
             # (32+256, 1, 1) -> (256, 4, 4)
             nn.ConvTranspose2d(input_dim, 256, 4),
@@ -93,6 +95,45 @@ class Decoder(pl.LightningModule):
             nn.ConvTranspose2d(32, output_dim, 5, 2, 2, 1),
             nn.LeakyReLU(0.2, inplace=True),
         ).apply(initialize_weight)
+        """
+
+        modules = []
+        hidden_dims = [512, 256, 128, 64, 32]
+        
+        for i in range(len(hidden_dims) - 1):
+            modules.append(
+                nn.Sequential(
+                    nn.ConvTranspose2d(hidden_dims[i],
+                                       hidden_dims[i + 1],
+                                       kernel_size=3,
+                                       stride = 2,
+                                       padding=1,
+                                       output_padding=1),
+                    nn.BatchNorm2d(hidden_dims[i + 1]),
+                    nn.LeakyReLU())
+            )
+
+        self.fc = nn.Sequential(
+            nn.Linear(input_dim, 512),
+            nn.ReLU(),
+            nn.Linear(512, hidden_dims[0] * 4)
+        ).apply(initialize_weight)
+
+        self.decoder = nn.Sequential(*modules).apply(initialize_weight)
+        self.final_layer = nn.Sequential(
+                            nn.ConvTranspose2d(hidden_dims[-1],
+                                               hidden_dims[-1],
+                                               kernel_size=3,
+                                               stride=2,
+                                               padding=1,
+                                               output_padding=1),
+                            nn.BatchNorm2d(hidden_dims[-1]),
+                            nn.LeakyReLU(),
+                            nn.Conv2d(hidden_dims[-1], out_channels= 3,
+                                      kernel_size= 3, padding= 1),
+                            nn.Tanh()).apply(initialize_weight)
+        """
+
         self.std = std
 
     def forward(self, x):
@@ -103,12 +144,12 @@ class Decoder(pl.LightningModule):
         x = x.view(B, S, C, W, H)
         return x, torch.ones_like(x).mul_(self.std)
 
-
 class Encoder(pl.LightningModule):
 
     def __init__(self, input_dim=3, output_dim=256):
         super(Encoder, self).__init__()
 
+        
         self.net = nn.Sequential(
             # (3, 64, 64) -> (32, 32, 32)
             nn.Conv2d(input_dim, 32, 5, 2, 2),
@@ -126,6 +167,28 @@ class Encoder(pl.LightningModule):
             nn.Conv2d(256, output_dim, 4),
             nn.LeakyReLU(0.2, inplace=True),
         ).apply(initialize_weight)
+        """
+        modules = []
+        hidden_dims = [32, 64, 128, 256, 512]
+
+        # Build Encoder
+        for h_dim in hidden_dims:
+            modules.append(
+                nn.Sequential(
+                    nn.Conv2d(input_dim, out_channels=h_dim, kernel_size= 3, stride= 2, padding  = 1),
+                    nn.BatchNorm2d(h_dim),
+                    nn.LeakyReLU(),
+            ))
+            input_dim = h_dim
+
+        self.encoder = nn.Sequential(*modules).apply(initialize_weight)
+        
+        self.fc = nn.Sequential(
+            nn.Linear(512 * 2 * 2, 512),
+            nn.ReLU(),
+            nn.Linear(512, output_dim)
+        ).apply(initialize_weight)
+        """
 
     def forward(self, x):
         B, S, C, H, W = x.size()
@@ -188,6 +251,7 @@ class SEQ_VAE(pl.LightningModule):
             in_channels,
             std=np.sqrt(0.1),
         )
+        
         self.apply(initialize_weight)
 
    
@@ -273,6 +337,6 @@ class SEQ_VAE(pl.LightningModule):
             reconstruction = mean.squeeze(0)
 
         logger.experiment.log({
-            "true observation" : [wandb.Image(s) for s in state_.squeeze(1)],
+            "true observation" : [wandb.Image(s) for s in state_.squeeze(0)],
             "posterior sample" : [wandb.Image(r) for r in reconstruction],
         })
