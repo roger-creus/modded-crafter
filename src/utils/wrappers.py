@@ -3,7 +3,6 @@ import numpy as np
 from gym import spaces
 import crafter
 import cv2
-from crafter.env import Env
 cv2.ocl.setUseOpenCL(False)
 
 class MaxAndSkipEnv(gym.Wrapper):
