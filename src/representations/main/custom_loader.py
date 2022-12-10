@@ -51,6 +51,83 @@ class CustomCrafterData(Dataset):
         x = torch.div(x.unsqueeze(0).permute(0,3,1,2), 255)
         return x
 
+class CustomCrafterSeqData(Dataset):
+    def __init__(self, traj_list, delay=False):
+        
+        self.path = Path("/home/roger/Desktop/modded-crafter/src/representations/trajectories/tmp") 
+        self.traj_list = traj_list
+        self.dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
+        self.customLoad()
+
+    def getSequence(self, idx):
+        obs = torch.FloatTensor(self.data[idx].astype(float))
+        acts = torch.FloatTensor(self.action_data[idx].astype(float))
+        return obs, acts
+
+    def customLoad(self):
+        print("Loading data...")
+        data = []
+        action_data = []
+
+        for i, traj in enumerate(self.traj_list):
+            print(f"\tTraj: {i}", end ='\r')
+
+            env_num = traj.split("/")[1]
+            traj_num = traj.split("/")[2].split(".")[0].split("_")[2]
+
+            act_traj = "actions/" + env_num + "/" + "trajectory_actions_" + traj_num + ".npy"
+
+            obs = np.load(str(self.path) + "/" + traj, allow_pickle=True)
+            acts = np.load(str(self.path) + "/" + act_traj, allow_pickle=True)
+            
+            seq_len = 8
+            
+            ### load seqs of observations ###
+            num_seqs = int(np.floor(obs.shape[0] / seq_len))
+            splits = np.array_split(obs, num_seqs)
+            
+            for i in range(num_seqs):
+                while len(splits[i]) > seq_len:
+                    splits[i] = np.array(splits[i][1:])
+            
+            splits = np.stack(splits)
+
+            ### load seqs of actions ###
+            num_seqs = int(np.floor(acts.shape[0] / seq_len))
+            splits_act = np.array_split(acts, num_seqs)
+            
+            for i in range(num_seqs):
+                while len(splits_act[i]) > seq_len:
+                    splits_act[i] = np.array(splits_act[i][1:])
+            
+            splits_act = np.stack(splits_act)
+            
+            data.append(splits)
+            action_data.append(splits_act)
+
+    
+        data = np.concatenate(np.array(data, dtype='object'))
+        action_data = np.concatenate(np.array(action_data, dtype='object'))
+        #print("current shape:", data.shape)
+        #data = data.reshape(-1, 64, 64, 3)
+        #print("reshaped shape:", data.shape)
+        
+        self.data = data
+        self.action_data = action_data
+
+        print("Loaded data of shape: " + str(data.shape))
+        print("Loaded action data of shape: " + str(action_data.shape))
+
+    def __len__(self) -> int:
+        return len(self.data)
+
+    def __getitem__(self, index):
+        # Get query obs
+        obs, acts = self.getSequence(index)
+
+        obs = obs.permute(0,3,1,2)
+        return obs, acts
+
 
 class CustomCrafterData_SEMANTIC(Dataset):
     def __init__(self, traj_list, path = "/network/scratch/r/roger.creus-castanyer/tmp/", delay=False, **kwargs) -> None:

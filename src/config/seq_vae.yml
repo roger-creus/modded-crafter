@@ -1,0 +1,19 @@
+model_params:
+  name: 'SeqVAE'
+  in_channels: 3
+  num_actions: 17
+  latent_dim: 256
+  z1_dim: 32
+  z2_dim: 256
+  hidden_units: 256
+
+exp_params:
+  batch_size: 64
+  lr: 0.005
+  weight_decay: 0.0
+  manual_seed: 1265
+  split : 0.9
+  trajectories: ['observations/env_1']
+
+trainer_params:
+  max_epochs: 100

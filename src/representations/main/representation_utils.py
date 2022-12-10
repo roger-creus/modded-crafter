@@ -26,7 +26,7 @@ def trainValSplit(traj_list, split):
         return traj_list[:int(split*num_traj)], traj_list[int(split*num_traj):]
 
 
-def get_train_val_split(t, split, path="/network/scratch/r/roger.creus-castanyer/tmp/"):
+def get_train_val_split(t, split, path="/home/roger/Desktop/modded-crafter/src/representations/trajectories/tmp"):
     path = Path(path)
     all_trajectories = []
     for l in t:

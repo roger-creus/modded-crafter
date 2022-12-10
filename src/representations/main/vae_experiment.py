@@ -46,7 +46,6 @@ class VAEXperiment(pl.LightningModule):
         val_dataloader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False, num_workers=0)
         return val_dataloader
 
-
     def forward(self, input, **kwargs):
         return self.model(input, **kwargs)
 

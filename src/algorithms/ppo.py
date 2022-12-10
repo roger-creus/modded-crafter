@@ -20,7 +20,6 @@ from utils.networks import *
 
 os.environ["WANDB_API_KEY"] = "e352fb7178eccaebef862095e4789238001ffbaf"
 
-
 def parse_args():
     # fmt: off
     parser = argparse.ArgumentParser()
