@@ -257,3 +257,22 @@ class SEQ_VAE(pl.LightningModule):
         loss_image = -log_likelihood_.mean(dim=0).sum()
 
         return loss_kld, loss_image
+
+    def evaluate_reconstruction(self, state_, action_, logger):
+        action_ = F.one_hot(action_[:, :-1, :].long(), num_classes = 17).squeeze(2)
+
+        with torch.no_grad():
+            feature_ = self.encoder(state_)
+
+            z1_mean_, z1_std_, z1_, z2_ = self.sample_posterior(feature_, action_)
+
+            z_ = torch.cat([z1_, z2_], dim=-1)
+
+            mean, cov = self.decoder(z_)
+
+            reconstruction = mean.squeeze(0)
+
+        logger.experiment.log({
+            "true observation" : [wandb.Image(s) for s in state_.squeeze(1)],
+            "posterior sample" : [wandb.Image(r) for r in reconstruction],
+        })

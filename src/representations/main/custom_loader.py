@@ -54,7 +54,7 @@ class CustomCrafterData(Dataset):
 class CustomCrafterSeqData(Dataset):
     def __init__(self, traj_list, delay=False):
         
-        self.path = Path("/home/roger/Desktop/modded-crafter/src/representations/trajectories/tmp") 
+        self.path = Path("/network/scratch/r/roger.creus-castanyer/tmp") 
         self.traj_list = traj_list
         self.dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
         self.customLoad()
@@ -78,12 +78,16 @@ class CustomCrafterSeqData(Dataset):
             act_traj = "actions/" + env_num + "/" + "trajectory_actions_" + traj_num + ".npy"
 
             obs = np.load(str(self.path) + "/" + traj, allow_pickle=True)
-            acts = np.load(str(self.path) + "/" + act_traj, allow_pickle=True)
+            acts = np.load(str(self.path) + "/" + act_traj, allow_pickle=True)[:,None]
             
             seq_len = 8
             
             ### load seqs of observations ###
             num_seqs = int(np.floor(obs.shape[0] / seq_len))
+
+            if num_seqs == 0:
+                continue
+
             splits = np.array_split(obs, num_seqs)
             
             for i in range(num_seqs):

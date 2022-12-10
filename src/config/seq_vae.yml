@@ -13,7 +13,7 @@ exp_params:
   weight_decay: 0.0
   manual_seed: 1265
   split : 0.9
-  trajectories: ['observations/env_1']
+  trajectories: ['observations/env_1234','observations/env_1235','observations/env_1236','observations/env_1237','observations/env_1238','observations/env_1239','observations/env_1240', 'observations/env_1241', 'observations/env_1242', 'observations/env_1243']
 
 trainer_params:
   max_epochs: 100

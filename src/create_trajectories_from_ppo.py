@@ -41,8 +41,8 @@ envs_num = args.envs_num
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-agent = Agent().to(device)
-agent.load_state_dict(torch.load("/home/roger/Desktop/modded-crafter/src/checkpoints/ppo-14254080.pt"))
+agent = Agent(z_dim = 256).to(device)
+agent.load_state_dict(torch.load("/home/mila/r/roger.creus-castanyer/modded-crafter/src/checkpoints/ppo-8814592.pt"))
 
 os.makedirs(args.save_path + "/tmp/" + "observations/")
 os.makedirs(args.save_path + "/tmp/" + "actions/")
@@ -72,7 +72,6 @@ for env_ in range(envs_num):
         steps = 0
         done = False
         obs = env.reset("random")
-        #obs, reward, done, info = env.step(15)
         
         trajectory = []
         trajectory_actions = []
@@ -89,7 +88,7 @@ for env_ in range(envs_num):
             # scale imgs to [0,1], the model uses this format
             gray_obs = np.array(obs).astype(np.float32) / 255.0
             
-            action, logprob, _, value = agent.get_action_and_value(torch.Tensor(gray_obs).unsqueeze(0).to(device))
+            action, logprob, _, value = agent.get_action_and_value(torch.Tensor(gray_obs).unsqueeze(0).permute(0,3,1,2).to(device))
             
             next_obs, reward, done, info = env.step(action.item())
             
@@ -108,13 +107,13 @@ for env_ in range(envs_num):
             #semantic = np.append(local_semantic, inventory, axis = 1)
 
             trajectory.append(obs)
-            trajectory_actions.append(action)
+            trajectory_actions.append(action.item())
             trajectory_positions.append(player_pos)
 
             obs = next_obs
 
         trajectory = np.array(trajectory)
-        trajectory_actions = np.array(trajectory_actions)
+        trajectory_actions = np.array(trajectory_actions)[:,None]
         trajectory_positions = np.array(trajectory_positions)
         
         trajectory_observations_path = envs_obs_path + "trajectory_observations_"  + str(i) + ".npy"
@@ -125,7 +124,7 @@ for env_ in range(envs_num):
             np.save(tf, trajectory)
 
         with open(trajectory_actions_path, 'wb') as ts:
-            np.save(ts, trajectory_actions_path)
+            np.save(ts, trajectory_actions)
         
         with open(trajectory_positions_path, 'wb') as to:
             np.save(to, trajectory_positions)

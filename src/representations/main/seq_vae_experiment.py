@@ -56,12 +56,9 @@ class SEQ_VAEXperiment(pl.LightningModule):
         loss_kl, loss_img = self.model.calculate_loss(state_, action_)
 
         # evalutation (reconstructions)
-        """
-        if batch_idx % 2000 == 0:
-            self.model.sample(num_samples = 8, current_device = 0, logger = self.logger)
-            batch_plot = batch[0:8, :, :, :]
-            self.model.generate(batch_plot, logger = self.logger)
-        """
+        if batch_idx % 10 == 0:
+            state_plot_, action_plot_ = batch[0].unsqueeze(0)
+            self.model.evaluate_reconstruction(state_plot_, action_plot_, logger = self.logger)
 
         self.log('kl_loss/train_epoch', loss_kl, on_step=False, on_epoch=True, sync_dist = True)
         self.log('recon_loss/train_epoch', loss_img, on_step=False, on_epoch=True, sync_dist = True)

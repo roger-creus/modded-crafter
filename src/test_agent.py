@@ -21,7 +21,7 @@ env = gym.vector.SyncVectorEnv(
     )
 
 agent = Agent(env).to(device)
-agent.load_state_dict(torch.load("/home/roger/Desktop/modded-crafter/src/checkpoints/ppo-14254080.pt"))
+agent.load_state_dict(torch.load("/home/mila/r/roger.creus-castanyer/modded-crafter/src/checkpoints/ppo-8814592.pt"))
 
 obs = env.reset()
 done = False

@@ -17,7 +17,7 @@ conda activate /home/mila/r/roger.creus-castanyer/anaconda3/envs/crafter
 #    and look for the dataset into $SLURM_TMPDIR
 
 #python3 algorithms/ppo.py  --seed 1  --env-id CrafterReward-v1 --num-envs 16 --num-steps 2048 --num-minibatches 64 --update-epochs 10 --clip-coef 0.2 --ent-coef 0 --total-timesteps 50000000 --track --wandb-project-name crafter --eval-interval 1 --save-path $SLURM_TMPDIR
-python3 src/create_trajectories_from_ppo.py  --seed 9999 --envs-num 10 --save-path $SLURM_TMPDIR
+python3 src/create_trajectories_from_ppo.py  --seed 1234 --envs-num 10 --save-path $SLURM_TMPDIR
 
 # 5. Copy whatever you want to save on $SCRATCH
 cp -r $SLURM_TMPDIR/* /network/scratch/r/roger.creus-castanyer/
