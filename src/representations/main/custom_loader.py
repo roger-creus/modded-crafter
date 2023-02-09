@@ -14,7 +14,7 @@ from pathlib import Path
 class CustomCrafterData(Dataset):
     def __init__(self, traj_list, delay=False):
         
-        self.path = Path("/network/scratch/r/roger.creus-castanyer/tmp/") 
+        self.path = Path("/home/roger/Desktop/modded-crafter/src/representations/trajectories/tmp") 
         self.traj_list = traj_list
         self.dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
         self.customLoad()
@@ -48,7 +48,7 @@ class CustomCrafterData(Dataset):
         x = self.getImage(index)
 
         # for RGB images only
-        x = torch.div(x.unsqueeze(0).permute(0,3,1,2), 255)
+        x = x.unsqueeze(0).permute(0,3,1,2)
         return x
 
 class CustomCrafterSeqData(Dataset):

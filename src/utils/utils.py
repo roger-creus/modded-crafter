@@ -19,8 +19,8 @@ warnings.filterwarnings('ignore', '.*future.*', )
 
 from src.representations.main.custom_loader import CustomCrafterData
 
-#assets_path = "/home/roger/Desktop/modded-crafter/crafter/assets/"
-assets_path = "/home/mila/r/roger.creus-castanyer/modded-crafter/crafter/assets"
+assets_path = "/home/roger/Desktop/modded-crafter/crafter/assets/"
+#assets_path = "/home/mila/r/roger.creus-castanyer/modded-crafter/crafter/assets"
 
 map_semantic = {
     0 : "unknown.png",

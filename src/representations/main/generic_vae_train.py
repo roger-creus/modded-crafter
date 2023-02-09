@@ -9,11 +9,11 @@ from src.representations.models.INFO_VAE import InfoVAE_PL
 from src.representations.models.MIWAE import MIWAE_PL
 from  src.representations.main.vae_experiment import VAEXperiment, VAEXperiment_SEMANTIC, SemanticPredictorExperiment
 import torch.backends.cudnn as cudnn
+import pytorch_lightning
 from pytorch_lightning import Trainer
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.utilities.seed import seed_everything
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
-from pytorch_lightning.plugins import DDPPlugin
 import wandb
 
 
@@ -26,7 +26,7 @@ parser.add_argument('--config',  '-c',
 
 args = parser.parse_args()
 
-with open("/home/mila/r/roger.creus-castanyer/modded-crafter/src/config/" + args.filename, 'r') as file:
+with open("/home/roger/Desktop/modded-crafter/src/config/" + args.filename, 'r') as file:
     try:
         config = yaml.safe_load(file)
     except yaml.YAMLError as exc:
@@ -38,6 +38,7 @@ os.environ["WANDB_API_KEY"] = "e352fb7178eccaebef862095e4789238001ffbaf"
 
 wandb_logger = WandbLogger(
     project='crafter',
+    entity='rogercreus',
     name=config['model_params']['name'],
     tags=['vae']
 )
@@ -69,7 +70,7 @@ runner = Trainer(logger=wandb_logger,
                  enable_checkpointing = True,
                  devices=1,
                  #default_root_dir = os.environ["SLURM_TMPDIR"] + "/tmp/checkpoints/",
-                 strategy=DDPPlugin(find_unused_parameters=True),
+                 strategy=pytorch_lightning.strategies.DDPStrategy(find_unused_parameters=True),
                  **config['trainer_params'])
 
 print(f"======= Training {config['model_params']['name']} =======")

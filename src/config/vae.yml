@@ -1,17 +1,17 @@
 model_params:
   name: 'VanillaVAE'
   in_channels: 3
-  latent_dim: 128
+  latent_dim: 8
 
 exp_params:
   batch_size: 64
   lr: 0.005
   weight_decay: 0.0
   scheduler_gamma: 0.95
-  kld_weight: 0.0000025
+  kld_weight: 0.00000000025
   manual_seed: 1265
   split : 0.9
-  trajectories: ['observations/env_9999','observations/env_10000','observations/env_10001','observations/env_10002','observations/env_10003','observations/env_10004','observations/env_10005','observations/env_10006','observations/env_10007','observations/env_10008']
+  trajectories: ['observations/env_1','observations/env_2','observations/env_3']
 
 trainer_params:
-  max_epochs: 100
+  max_epochs: 500
